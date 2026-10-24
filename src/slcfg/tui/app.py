@@ -71,6 +71,7 @@ class ConfirmSend(ModalScreen[bool]):
     #dialog { width: 80; height: auto; border: thick $warning; padding: 1 2; background: $surface; }
     #dialog Horizontal { height: auto; margin-top: 1; }
     #dialog Label { width: 100%; }
+    #confirm-warning { color: $warning; margin: 1 0; }
     """
 
     def __init__(self, summary: str) -> None:
@@ -80,6 +81,7 @@ class ConfirmSend(ModalScreen[bool]):
     def compose(self) -> ComposeResult:
         with Vertical(id="dialog"):
             yield Label(self.summary, id="confirm-summary")
+            yield Label(midi_io.HARDWARE_WARNING, id="confirm-warning")
             yield Label("This overwrites the SL's edit buffer. Continue?")
             with Horizontal():
                 yield Button("Send", variant="error", id="confirm-yes")

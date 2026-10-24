@@ -5,6 +5,15 @@ A macOS-friendly replacement for Novation's ReMOTE SL Template Editor, for the
 ZeRO SL). Templates live as JSON, edit in a terminal UI, and travel to and from the keyboard
 as SysEx.
 
+> [!WARNING]
+> **Untested on real hardware. Use at your own risk.** The ReMOTE SL template format is
+> undocumented; this tool's understanding of it is reverse-engineered from public template
+> files and is partly guessed (see [`docs/FORMAT.md`](docs/FORMAT.md)). Sending a template can
+> overwrite what is stored on your keyboard. **Back up all 40 templates first** (Global menu →
+> Template Dump → All, or `slcfg capture` step C0). The software is provided "as is", without
+> warranty of any kind (see [LICENSE](LICENSE)). Not affiliated with or endorsed by Novation
+> or Focusrite.
+
 ![slcfg editing a template: pick controls on the panel, rename one, diff, send](docs/demo.gif)
 
 The template format is undocumented. This repo reverse-engineers it from 129 public
@@ -22,7 +31,7 @@ templates. A hardware session will confirm the rest.
 | Checksum | likely none |
 | Codec | lossless: `encode(decode(x)) == x` for all 90 community files (129 templates) |
 | CLI, TUI, fake MIDI port | done, tested without hardware |
-| Real-device send/receive | written (`--device`), **untested on hardware** |
+| Real-device send/receive | written (`--device`), **untested on hardware: use at your own risk** |
 
 Details and evidence: [`docs/FORMAT.md`](docs/FORMAT.md). What to capture at home:
 [`docs/CAPTURE_PLAN.md`](docs/CAPTURE_PLAN.md). Judgement calls: [`docs/DECISIONS.md`](docs/DECISIONS.md).

@@ -1,5 +1,9 @@
 # Capture plan (hardware session)
 
+> **Untested, use at your own risk.** Nothing here has run against a real SL yet. Most steps
+> only *read* from the keyboard; step C12 *writes* a template to its edit buffer. Do step C0
+> (full backup) first and keep `C0_all.syx` safe.
+
 Goal: turn every **guess** in `docs/FORMAT.md` into **confirmed** with as few dumps as
 possible. About 90 minutes, **13 captures**. Tracked in issue #11 ("Hardware session"),
 with one issue per open question (#1–#10).

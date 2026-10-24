@@ -2,7 +2,7 @@
 
 import asyncio
 
-from textual.widgets import Input, Static
+from textual.widgets import Input, Label, Static
 
 from conftest import V_STATION_1
 from slcfg import codec, midi_io
@@ -55,6 +55,8 @@ def test_send_requires_confirm_dialog():
             await pilot.click("#send")
             await pilot.pause()
             assert isinstance(app.screen, ConfirmSend)
+            warning = str(app.screen.query_one("#confirm-warning", Label).render())
+            assert "own risk" in warning
             await pilot.click("#confirm-no")
             await pilot.pause()
             assert port.sent == []

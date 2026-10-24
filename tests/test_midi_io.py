@@ -10,6 +10,7 @@ def test_send_requires_confirmation(vstation):
         midi_io.send_template(port, vstation, lambda s: seen.append(s) or False)
     assert port.sent == []
     assert "4112 bytes" in seen[0]
+    assert "own risk" in seen[0] and "UNTESTED" in seen[0]
     # truthy-but-not-True answers do not count as a confirmation
     with pytest.raises(midi_io.SendCancelled):
         midi_io.send_template(port, vstation, lambda s: "yes")

@@ -17,6 +17,13 @@ from typing import Protocol, runtime_checkable
 
 from .sysex import EOX, SOX, split_messages
 
+# Shown before anything is sent to real hardware (CLI prompt, TUI dialog, capture wizard).
+HARDWARE_WARNING = (
+    "UNTESTED on real hardware: the template format is reverse-engineered and partly guessed. "
+    "Sending can overwrite templates on your SL. Back up first (Global > Template Dump > All). "
+    "Use at your own risk."
+)
+
 
 class MidiIOError(RuntimeError):
     pass
@@ -140,7 +147,7 @@ def send_template(
     msgs = split_messages(data)
     if not msgs:
         raise MidiIOError("nothing to send")
-    summary = f"Send {describe(data)} to {port.name!r}?"
+    summary = f"{HARDWARE_WARNING}\nSend {describe(data)} to {port.name!r}?"
     if confirm(summary) is not True:
         raise SendCancelled("send not confirmed")
     for i, msg in enumerate(msgs):

@@ -934,6 +934,8 @@ class Wizard:
         ui = self.ui
         if self.simulated:
             ui.say("SIMULATED SL: rehearsal only, results are not real findings.")
+        else:
+            ui.say(f"⚠ {midi_io.HARDWARE_WARNING}")
         for step in self.steps:
             if only and step.id.lower() != only.lower():
                 continue
