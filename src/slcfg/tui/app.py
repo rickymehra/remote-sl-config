@@ -31,6 +31,7 @@ from textual.widgets import (
 
 from .. import codec, midi_io
 from ..diff import diff_bytes, format_diff
+from ..library import Library
 from ..model import (
     BUTTON_MODES,
     CONTROL_TYPES,
@@ -117,6 +118,7 @@ class SLConfigApp(App[None]):
     BINDINGS = [
         Binding("ctrl+s", "save_json", "Save JSON"),
         Binding("ctrl+e", "save_syx", "Save .syx"),
+        Binding("l", "library", "Library"),
         Binding("q", "quit", "Quit"),
     ]
 
@@ -125,6 +127,8 @@ class SLConfigApp(App[None]):
         path: Path | None = None,
         device: str | None = None,
         port: midi_io.MidiPort | None = None,
+        library: Library | None = None,
+        open_library: bool = False,
     ) -> None:
         super().__init__()
         self.path = path
@@ -137,6 +141,11 @@ class SLConfigApp(App[None]):
         self.template: Template = blank_template()
         self.loaded_bytes: bytes = codec.encode(self.template)
         self.selected: str = "encoder_1"
+        # 40-slot library (tui/library.py); library_slot is set while editing one of its slots
+        self.library = library if library is not None else Library()
+        self.library_slot: int | None = None
+        self.open_library = open_library
+        self._reference: list[Library | None] = []  # factory bulk, loaded on first use
 
     # ---- layout -----------------------------------------------------------------------------
 
@@ -193,6 +202,8 @@ class SLConfigApp(App[None]):
             self.load(self.path)
         else:
             self.refresh_all()
+        if self.open_library:
+            self.action_library()
 
     # ---- state <-> widgets ------------------------------------------------------------------
 
@@ -207,6 +218,7 @@ class SLConfigApp(App[None]):
         self.template = ts[0]
         self.loaded_bytes = codec.encode(self.template)
         self.path = path
+        self.library_slot = None
         note = f" (first of {len(ts)})" if len(ts) > 1 else ""
         self.set_status(f"loaded {path}{note}")
         self.refresh_all()
@@ -305,7 +317,7 @@ class SLConfigApp(App[None]):
         self.template.controls[self.selected] = c
         self.template.name = name
         self.template.slot = int(slot_text)
-        self.set_status(f"updated {self.selected}")
+        self.set_status(f"updated {self.selected}{self._sync_library()}")
         self.refresh_all()
 
     @on(Button.Pressed, "#revert")
@@ -324,14 +336,14 @@ class SLConfigApp(App[None]):
         path = self._target(".json")
         if path:
             path.write_text(json.dumps(self.template.to_json(), indent=2) + "\n")
-            self.set_status(f"saved {path}")
+            self.set_status(f"saved {path}{self._sync_library()}")
 
     @on(Button.Pressed, "#save-syx")
     def action_save_syx(self) -> None:
         path = self._target(".syx")
         if path:
             path.write_bytes(codec.encode(self.template))
-            self.set_status(f"saved {path}")
+            self.set_status(f"saved {path}{self._sync_library()}")
 
     def _target(self, suffix: str) -> Path | None:
         text = self.query_one("#path", Input).value.strip()
@@ -375,5 +387,48 @@ class SLConfigApp(App[None]):
             self.set_status(f"received data is not a template: {e}")
             return
         self.loaded_bytes = msgs[0]
+        self.library_slot = None
         self.set_status(f"received template '{self.template.name}'")
         self.refresh_all()
+
+    # ---- library (tui/library.py) -----------------------------------------------------------
+
+    @property
+    def library_reference(self) -> Library | None:
+        if not self._reference:
+            self._reference.append(Library.factory())
+        return self._reference[0]
+
+    def action_library(self) -> None:
+        from .library import LibraryScreen
+
+        if not isinstance(self.screen, LibraryScreen):
+            self.push_screen(LibraryScreen())
+
+    def open_from_library(self, slot: int) -> None:
+        """Edit a copy of library ``slot`` (a new blank template if it is empty)."""
+        from .library import LibraryScreen
+
+        t = self.library.get(slot)
+        if t is None:
+            t = blank_template()
+            t.slot = slot
+        self.template = copy.deepcopy(t)
+        self.loaded_bytes = codec.encode(self.template)
+        self.library_slot = slot
+        if isinstance(self.screen, LibraryScreen):
+            self.pop_screen()
+        self.refresh_all()
+        self.set_status(f"editing library slot {slot}; Apply/Save updates the library")
+
+    def library_moved(self, a: int, b: int) -> None:
+        """Slots ``a`` and ``b`` were swapped: keep pointing at the template being edited."""
+        if self.library_slot in (a, b):
+            self.library_slot = b if self.library_slot == a else a
+
+    def _sync_library(self) -> str:
+        """Write the edited template back to its library slot; returns a status suffix."""
+        if self.library_slot is None:
+            return ""
+        self.library.put(self.library_slot, self.template)
+        return f" (library slot {self.library_slot} updated)"
