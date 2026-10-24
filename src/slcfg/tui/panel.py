@@ -13,21 +13,37 @@ record numbers are in docs/FORMAT.md):
     [joystick]
     [touchpad]  ═══════════════════ 37 keys ═══════════════════════════
 
-Only assignable controls are buttons (``#ctl-<slot key>``); fixed-function parts (row
-select, scroll, mode buttons, LCDs, octave, jacks) are drawn dimmed for orientation.
+Only assignable controls are buttons (``#ctl-<slot key>``); fixed-function parts (mode
+buttons, octave, jacks) are drawn dimmed for orientation. The LCDs work like Play mode:
+names over values for the row the selected control is in, with the row's LED lit.
+Decoration and animation live in ``decor.py``.
 """
 
 from __future__ import annotations
 
-from rich.text import Text
+import time
+
 from textual.app import ComposeResult
+from textual.color import Color
 from textual.containers import Grid, Horizontal, Vertical
 from textual.widget import Widget
 from textual.widgets import Button, Collapsible, Static
 
-from ..model import SLOT_BY_KEY, SLOTS
+from ..model import SLOT_BY_KEY, SLOTS, Template
+from .decor import (
+    NEON,
+    Animated,
+    DotField,
+    Lcd,
+    Led,
+    Wordmark,
+    breathe,
+    keyboard_art,
+    mix,
+)
 
 CELL = 9  # columns per control: 8-char LCD name + 1 gap
+FPS = 8
 
 # Rear-to-front rows of each half.
 LEFT_ROWS = ["button_row1", "encoder", "button_row2", "pot", "drum_pad"]
@@ -68,71 +84,94 @@ def fixed(text: str, *classes: str) -> Static:
     return Static(text, classes=" ".join(("fixed", *classes)))
 
 
-def keyboard_art(octaves: int = 3, white_w: int = 7) -> Text:
-    """37 keys (C..C) as text: 4 lines with black keys, 2 lines of white key fronts."""
-    whites = octaves * 7 + 1
-    black_after = {0, 1, 3, 4, 5}  # C#, D#, F#, G#, A# follow these white keys (mod 7)
-    width = whites * white_w
-    rows: list[Text] = []
-    for line in range(6):
-        t = Text()
-        for x in range(width):
-            k, pos = divmod(x, white_w)
-            in_black = line < 4 and (
-                (pos >= white_w - 2 and k % 7 in black_after and k < whites - 1)
-                or (pos <= 1 and k > 0 and (k - 1) % 7 in black_after)
-            )
-            if in_black:
-                t.append(" ", style="on #1a1a1a")
-            elif pos == white_w - 1:
-                t.append("▏", style="#777777 on #e8e8e8")
-            else:
-                t.append(" ", style="on #e8e8e8")
-        rows.append(t)
-    return Text("\n").join(rows)
+ROW_CAPTIONS = {
+    "button_row1": "BUTTONS 1",
+    "encoder": "ENCODERS",
+    "button_row2": "BUTTONS 2",
+    "pot": "POTS",
+    "drum_pad": "DRUM PADS",
+    "slider": "SLIDERS",
+    "button_row3": "BUTTONS 3",
+    "button_row4": "BUTTONS 4",
+}
+SELECT_DIM = "#8a5200"
+FRAME_GREEN = NEON.blend(Color.parse("#101010"), 0.45).hex  # the green strip outlines
+SELECT_BRIGHT = "#ffa62b"
+
+
+def lcd_cells(t: Template, group: str) -> tuple[str, str]:
+    """Names and values of one row, laid out 9 characters per control like the SL LCD."""
+    names, values = [], []
+    for i in range(1, 9):
+        c = t.controls.get(f"{group}_{i}")
+        if c is None or c.type == "none":
+            names.append(" " * CELL)
+            values.append(" " * CELL)
+            continue
+        names.append(c.name[:8].ljust(CELL))
+        v = c.value - 64 if c.display == 1 else c.value
+        values.append((f"{v:+d}" if c.display == 1 else str(v)).center(CELL - 1) + " ")
+    return "".join(names), "".join(values)
 
 
 class FrontPanel(Widget):
     """Every assignable SL control as a button, placed where it is on the hardware."""
 
     DEFAULT_CSS = f"""
-    FrontPanel {{ height: auto; width: auto; }}
+    FrontPanel {{ height: auto; width: auto; background: #101010; }}
     FrontPanel .ctl {{
         width: {CELL - 1}; min-width: {CELL - 1}; height: 3; padding: 0; margin-right: 1;
+        background: #2a2a2a; color: #e6e6e6;
     }}
-    FrontPanel .ctl.selected {{ background: $accent; color: $text; }}
-    FrontPanel .fixed {{ color: $text-disabled; height: 3; content-align: center middle; }}
+    FrontPanel .ctl:hover {{ background: #3a3a3a; }}
+    FrontPanel .ctl.selected {{ background: {SELECT_BRIGHT}; color: #101010; }}
+    FrontPanel .fixed {{ color: #6b6b6b; height: 3; content-align: center middle; }}
     FrontPanel .row {{ height: 3; width: auto; }}
-    FrontPanel .rowsel {{ width: 2; }}
-    FrontPanel .lcd {{
-        width: {8 * CELL}; height: 3; background: #0c2a4a; color: #6fb7ff;
-        content-align: center middle;
-    }}
+    FrontPanel Lcd {{ width: {8 * CELL}; }}
     FrontPanel .scroll {{ width: 2; }}
-    FrontPanel #rear {{ height: 3; width: auto; }}
+    FrontPanel #rear {{ height: 3; width: auto; background: #0a0a0a; }}
     FrontPanel #rear .fixed {{ width: auto; padding: 0 1; }}
     FrontPanel #rear .ctl {{ width: 12; }}
-    FrontPanel #body {{ height: 18; width: auto; }}
-    FrontPanel #left, FrontPanel #right {{ height: 18; width: auto; }}
-    FrontPanel #far-left {{ width: 20; height: 18; }}
+    FrontPanel #body {{ height: 20; width: auto; }}
+    FrontPanel #left .row, FrontPanel #right .row, FrontPanel #sliders {{ width: {8 * CELL + 2}; }}
+    FrontPanel .section {{
+        height: 20; width: {8 * CELL + 2 + 2}; border: round {FRAME_GREEN};
+        border-title-color: {NEON.hex}; border-title-style: bold;
+    }}
+    FrontPanel #far-left {{ width: 20; height: 20; }}
     FrontPanel #far-left .ctl {{ width: 9; }}
-    FrontPanel #brand {{ height: 12; color: #39ff14; content-align: center middle; }}
-    FrontPanel #center {{ width: 11; height: 18; }}
+    FrontPanel #far-left Wordmark {{ height: 2; }}
+    FrontPanel #far-left DotField {{ height: 4; }}
+    FrontPanel #badge {{
+        height: 4; width: 16; margin-left: 1; border: round {NEON.hex}; color: {NEON.hex};
+        content-align: center middle; text-style: bold;
+    }}
+    FrontPanel #center {{ width: 11; height: 20; }}
+    FrontPanel #center Wordmark {{ height: 3; }}
     FrontPanel #center .mode {{ height: 2; content-align: center middle; }}
     FrontPanel #center .data {{ height: 3; border: round #555555; }}
-    FrontPanel #center .brand {{ height: 3; color: #39ff14; }}
+    FrontPanel #far-right {{ width: 14; height: 20; }}
     FrontPanel #sliders .ctl {{ height: 6; }}
     FrontPanel #sliders {{ height: 6; }}
     FrontPanel .oct {{ width: {2 * CELL}; }}
     FrontPanel #front {{ height: auto; width: auto; }}
     FrontPanel #touchpad {{
         width: 20; height: 6; grid-size: 2; grid-gutter: 0 0; grid-columns: 10;
+        background: #1b1b1b;
     }}
     FrontPanel #touchpad .ctl {{ width: 9; }}
     FrontPanel #keys {{ height: 6; width: auto; }}
     FrontPanel Collapsible {{ width: auto; padding: 0; border: none; }}
     FrontPanel #extras {{ height: 3; width: auto; }}
     """
+
+    def __init__(self, **kw) -> None:
+        super().__init__(**kw)
+        self.left_row = "encoder"
+        self.right_row = "slider"
+        self.selected: str | None = None
+        self._t0 = time.monotonic()
+        self.animating = False
 
     def compose(self) -> ComposeResult:
         # Rear edge: the pedals plug in here.
@@ -143,42 +182,48 @@ class FrontPanel(Widget):
             yield fixed("USB   9V DC")
         with Horizontal(id="body"):
             with Vertical(id="far-left"):
-                yield Static("· • ●\n novation \n ReMOTE\n 37 SL\n● • ·", id="brand")
+                yield Wordmark(["novation", "ReMOTE 37SL"])
+                yield DotField("scatter")
+                yield Static("LIMITED\nEDITION  Ⓐ", id="badge")
+                yield DotField("scatter", id="dots-left-2")
                 with Horizontal(classes="row"):
                     yield ctl_button("mod")
                     yield ctl_button("pitch")
                 yield fixed("joystick")
-            with Vertical(id="left"):
+            with Vertical(id="left", classes="section") as left:
+                left.border_title = "Automap"
                 with Horizontal(classes="row"):
                     yield fixed("◂▸", "scroll")
-                    yield Static("left LCD", classes="lcd")
+                    yield Lcd(id="lcd-left")
                 for group in LEFT_ROWS:
                     with Horizontal(classes="row", id=f"row-{group}"):
-                        yield fixed("◂", "rowsel")
+                        yield Led(id=f"led-{group}")
                         for i in range(1, 9):
                             yield ctl_button(f"{group}_{i}")
             with Vertical(id="center"):
-                yield fixed("● nov", "brand")
+                yield Wordmark(["", "novation", ""])
                 for name in MODE_BUTTONS:
                     yield fixed(name, "mode")
                 yield fixed("DATA ◎", "data")
-            with Vertical(id="right"):
+            with Vertical(id="right", classes="section") as right:
+                right.border_title = "ReMOTE SL"
                 with Horizontal(classes="row"):
-                    yield Static("right LCD", classes="lcd")
+                    yield Lcd(id="lcd-right")
                     yield fixed("◂▸", "scroll")
                 with Horizontal(id="sliders"):
                     for i in range(1, 9):
                         yield ctl_button(f"slider_{i}", "slider")
-                    yield fixed("▸", "rowsel")
+                    yield Led(id="led-slider")
                 for group in RIGHT_ROWS[1:]:
                     with Horizontal(classes="row", id=f"row-{group}"):
                         for i in range(1, 9):
                             yield ctl_button(f"{group}_{i}")
-                        yield fixed("▸", "rowsel")
+                        yield Led(id=f"led-{group}")
                 with Horizontal(classes="row", id="row-transport"):
                     yield fixed("octave ◂ ▸", "oct")
                     for key in TRANSPORT_KEYS:
                         yield ctl_button(key)
+            yield DotField("spiral", id="far-right")
         with Horizontal(id="front"):
             with Grid(id="touchpad"):
                 for key in ("touchpad_x1", "touchpad_y1", "touchpad_x2", "touchpad_y2"):
@@ -190,3 +235,37 @@ class FrontPanel(Widget):
         ):
             for key in EXTRA_KEYS:
                 yield ctl_button(key)
+
+    def on_mount(self) -> None:
+        if self.app.animation_level != "none":
+            self.animating = True
+            self.set_interval(1 / FPS, self._tick)
+
+    def _tick(self) -> None:
+        t = time.monotonic() - self._t0
+        for w in self.query(Animated):
+            w.tick(t)
+        if self.selected:
+            btn = self.query_one(f"#ctl-{self.selected}", Button)
+            btn.styles.background = mix(
+                Color.parse(SELECT_DIM), Color.parse(SELECT_BRIGHT), 0.55 + 0.45 * breathe(t, 2.4)
+            )
+
+    def show(self, template: Template, selected: str) -> None:
+        """Mark the selected control and update LCDs/LEDs the way the hardware would."""
+        if self.selected and self.selected != selected:
+            old = self.query_one(f"#ctl-{self.selected}", Button)
+            old.styles.clear_rule("background")
+            old.remove_class("selected")
+        self.selected = selected
+        self.query_one(f"#ctl-{selected}", Button).add_class("selected")
+        group = SLOT_BY_KEY[selected].group
+        if group in LEFT_ROWS:
+            self.left_row = group
+        elif group in RIGHT_ROWS:
+            self.right_row = group
+        for g in LEFT_ROWS + RIGHT_ROWS:
+            self.query_one(f"#led-{g}", Led).set_lit(g in (self.left_row, self.right_row))
+        for lcd_id, row in (("#lcd-left", self.left_row), ("#lcd-right", self.right_row)):
+            names, values = lcd_cells(template, row)
+            self.query_one(lcd_id, Lcd).show(names, values, f"  {ROW_CAPTIONS[row]}")

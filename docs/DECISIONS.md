@@ -25,3 +25,5 @@ Small calls made without the owner, newest last. Change any of them freely.
 | 19 | Header byte 7 is treated as a bulk-member flag but never rewritten | Unclear whether the SL cares when a bulk member is sent alone |
 | 20 | TUI panel follows the hardware geometry (rear at top), with fixed-function parts (LCDs, row-selects, mode buttons, octave, jacks) drawn dimmed | Easier to find a control by where it is on the keyboard; a test locks the geometry |
 | 21 | The control form moved under the panel; records 79–90 sit in a collapsed section | The panel needs about 180 columns; narrower terminals scroll it sideways |
+| 22 | Panel decor (neon dot prints, LIMITED EDITION badge, green strip frames, backlit LCDs, row LEDs, shaded keys) is animated by one 8 fps timer | Subtle motion, cheap to redraw; off when `TEXTUAL_ANIMATIONS=none` |
+| 23 | The LCDs show names over values of the selected control's row and light that row's LED, like Play mode | Same feedback as the hardware; values with display code 1 show as -64..+63 |

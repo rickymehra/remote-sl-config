@@ -218,10 +218,8 @@ class SLConfigApp(App[None]):
         self.select(self.selected)
 
     def select(self, key: str) -> None:
-        for b in self.query(".ctl.selected"):
-            b.remove_class("selected")
         self.selected = key
-        self.query_one(f"#ctl-{key}", Button).add_class("selected")
+        self.query_one(FrontPanel).show(self.template, key)
         c = self.template.control(key)
         s = SLOT_BY_KEY[key]
         self.query_one("#side-title", Label).update(f"{s.label}  [record {s.index + 1}]")

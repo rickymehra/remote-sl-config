@@ -145,3 +145,56 @@ def test_panel_geometry_matches_hardware():
             assert above("expression", "button_row1_1") and above("sustain", "button_row1_1")
 
     run(go())
+
+
+def test_lcds_and_leds_follow_selection():
+    from slcfg.tui.decor import Lcd, Led
+
+    async def go():
+        app = SLConfigApp(path=V_STATION_1)
+        async with app.run_test(size=(200, 60)) as pilot:
+            left, right = app.query_one("#lcd-left", Lcd), app.query_one("#lcd-right", Lcd)
+            assert "Osc1Levl" in left.lines[0] and "ENCODERS" in left.lines[2]
+            assert app.query_one("#led-encoder", Led).lit
+            await pilot.click("#ctl-pot_2")
+            await pilot.pause()
+            assert left.lines[0].startswith("Portamnt Osc1Fine")
+            assert "+0" in left.lines[1]  # Osc1Fine is bipolar: stored 64 shows as +0
+            assert app.query_one("#led-pot", Led).lit
+            assert not app.query_one("#led-encoder", Led).lit
+            await pilot.click("#ctl-button_row3_1")
+            await pilot.pause()
+            assert right.lines[0].startswith("ArpOnOff")
+            assert app.query_one("#led-button_row3", Led).lit
+            assert not app.query_one("#led-slider", Led).lit
+
+    run(go())
+
+
+def test_decor_animates_and_can_be_disabled():
+    from slcfg.tui.decor import DotField
+    from slcfg.tui.panel import FrontPanel
+
+    async def go():
+        app = SLConfigApp(path=V_STATION_1)
+        async with app.run_test(size=(200, 60)):
+            assert app.query_one(FrontPanel).animating
+            spiral = app.query_one("#far-right", DotField)
+
+            def frame(t):
+                spiral.tick(t)
+                lines = [spiral.render_line(y) for y in range(spiral.size.height)]
+                text = [line.text for line in lines]
+                colors = [seg.style.color for line in lines for seg in line if seg.text.strip()]
+                return text, colors
+
+            (text0, colors0), (text1, colors1) = frame(0.0), frame(1.0)
+            assert text0 == text1 and any(c.strip() for c in text0)  # same dots...
+            assert colors0 != colors1  # ...different glow
+
+        still = SLConfigApp(path=V_STATION_1)
+        still.animation_level = "none"
+        async with still.run_test(size=(200, 60)):
+            assert not still.query_one(FrontPanel).animating
+
+    run(go())
