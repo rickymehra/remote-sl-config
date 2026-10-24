@@ -1,8 +1,8 @@
 import json
 
 import pytest
-from conftest import BULK, COMMUNITY
 
+from conftest import BULK, COMMUNITY
 from slcfg import codec
 from slcfg.model import SLOTS, Control, Template, ValidationError
 

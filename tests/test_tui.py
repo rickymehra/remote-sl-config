@@ -2,9 +2,9 @@
 
 import asyncio
 
-from conftest import V_STATION_1
 from textual.widgets import Input, Static
 
+from conftest import V_STATION_1
 from slcfg import codec, midi_io
 from slcfg.tui.app import ConfirmSend, SLConfigApp
 

@@ -16,7 +16,11 @@ dependencies = [
 slcfg = "slcfg.cli:app"
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.6"]
+dev = [
+    "jsonschema>=4.26.0",
+    "pytest>=8",
+    "ruff>=0.6",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -34,3 +38,6 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["slcfg", "conftest"]

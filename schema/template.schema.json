@@ -1,0 +1,563 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rickymehra/remote-sl-config/schema/template.schema.json",
+  "title": "Novation ReMOTE SL (Mk1) template",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "controls"
+  ],
+  "properties": {
+    "format": {
+      "const": "slcfg-template/1"
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 48,
+      "pattern": "^[ -~]*$"
+    },
+    "slot": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 40,
+      "description": "Memory location 1..40"
+    },
+    "group": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "size": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "position": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        }
+      }
+    },
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "encoder_1": {
+          "$ref": "#/$defs/control",
+          "description": "Encoder 1 (record 1)"
+        },
+        "encoder_2": {
+          "$ref": "#/$defs/control",
+          "description": "Encoder 2 (record 2)"
+        },
+        "encoder_3": {
+          "$ref": "#/$defs/control",
+          "description": "Encoder 3 (record 3)"
+        },
+        "encoder_4": {
+          "$ref": "#/$defs/control",
+          "description": "Encoder 4 (record 4)"
+        },
+        "encoder_5": {
+          "$ref": "#/$defs/control",
+          "description": "Encoder 5 (record 5)"
+        },
+        "encoder_6": {
+          "$ref": "#/$defs/control",
+          "description": "Encoder 6 (record 6)"
+        },
+        "encoder_7": {
+          "$ref": "#/$defs/control",
+          "description": "Encoder 7 (record 7)"
+        },
+        "encoder_8": {
+          "$ref": "#/$defs/control",
+          "description": "Encoder 8 (record 8)"
+        },
+        "pot_1": {
+          "$ref": "#/$defs/control",
+          "description": "Pot 1 (record 9)"
+        },
+        "pot_2": {
+          "$ref": "#/$defs/control",
+          "description": "Pot 2 (record 10)"
+        },
+        "pot_3": {
+          "$ref": "#/$defs/control",
+          "description": "Pot 3 (record 11)"
+        },
+        "pot_4": {
+          "$ref": "#/$defs/control",
+          "description": "Pot 4 (record 12)"
+        },
+        "pot_5": {
+          "$ref": "#/$defs/control",
+          "description": "Pot 5 (record 13)"
+        },
+        "pot_6": {
+          "$ref": "#/$defs/control",
+          "description": "Pot 6 (record 14)"
+        },
+        "pot_7": {
+          "$ref": "#/$defs/control",
+          "description": "Pot 7 (record 15)"
+        },
+        "pot_8": {
+          "$ref": "#/$defs/control",
+          "description": "Pot 8 (record 16)"
+        },
+        "slider_1": {
+          "$ref": "#/$defs/control",
+          "description": "Slider 1 (record 17)"
+        },
+        "slider_2": {
+          "$ref": "#/$defs/control",
+          "description": "Slider 2 (record 18)"
+        },
+        "slider_3": {
+          "$ref": "#/$defs/control",
+          "description": "Slider 3 (record 19)"
+        },
+        "slider_4": {
+          "$ref": "#/$defs/control",
+          "description": "Slider 4 (record 20)"
+        },
+        "slider_5": {
+          "$ref": "#/$defs/control",
+          "description": "Slider 5 (record 21)"
+        },
+        "slider_6": {
+          "$ref": "#/$defs/control",
+          "description": "Slider 6 (record 22)"
+        },
+        "slider_7": {
+          "$ref": "#/$defs/control",
+          "description": "Slider 7 (record 23)"
+        },
+        "slider_8": {
+          "$ref": "#/$defs/control",
+          "description": "Slider 8 (record 24)"
+        },
+        "button_row1_1": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R1 1 (record 25)"
+        },
+        "button_row1_2": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R1 2 (record 26)"
+        },
+        "button_row1_3": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R1 3 (record 27)"
+        },
+        "button_row1_4": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R1 4 (record 28)"
+        },
+        "button_row1_5": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R1 5 (record 29)"
+        },
+        "button_row1_6": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R1 6 (record 30)"
+        },
+        "button_row1_7": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R1 7 (record 31)"
+        },
+        "button_row1_8": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R1 8 (record 32)"
+        },
+        "button_row2_1": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R2 1 (record 33)"
+        },
+        "button_row2_2": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R2 2 (record 34)"
+        },
+        "button_row2_3": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R2 3 (record 35)"
+        },
+        "button_row2_4": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R2 4 (record 36)"
+        },
+        "button_row2_5": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R2 5 (record 37)"
+        },
+        "button_row2_6": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R2 6 (record 38)"
+        },
+        "button_row2_7": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R2 7 (record 39)"
+        },
+        "button_row2_8": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R2 8 (record 40)"
+        },
+        "button_row3_1": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R3 1 (record 41)"
+        },
+        "button_row3_2": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R3 2 (record 42)"
+        },
+        "button_row3_3": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R3 3 (record 43)"
+        },
+        "button_row3_4": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R3 4 (record 44)"
+        },
+        "button_row3_5": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R3 5 (record 45)"
+        },
+        "button_row3_6": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R3 6 (record 46)"
+        },
+        "button_row3_7": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R3 7 (record 47)"
+        },
+        "button_row3_8": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R3 8 (record 48)"
+        },
+        "button_row4_1": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R4 1 (record 49)"
+        },
+        "button_row4_2": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R4 2 (record 50)"
+        },
+        "button_row4_3": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R4 3 (record 51)"
+        },
+        "button_row4_4": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R4 4 (record 52)"
+        },
+        "button_row4_5": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R4 5 (record 53)"
+        },
+        "button_row4_6": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R4 6 (record 54)"
+        },
+        "button_row4_7": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R4 7 (record 55)"
+        },
+        "button_row4_8": {
+          "$ref": "#/$defs/control",
+          "description": "Btn R4 8 (record 56)"
+        },
+        "drum_pad_1": {
+          "$ref": "#/$defs/control",
+          "description": "Pad 1 (record 57)"
+        },
+        "drum_pad_2": {
+          "$ref": "#/$defs/control",
+          "description": "Pad 2 (record 58)"
+        },
+        "drum_pad_3": {
+          "$ref": "#/$defs/control",
+          "description": "Pad 3 (record 59)"
+        },
+        "drum_pad_4": {
+          "$ref": "#/$defs/control",
+          "description": "Pad 4 (record 60)"
+        },
+        "drum_pad_5": {
+          "$ref": "#/$defs/control",
+          "description": "Pad 5 (record 61)"
+        },
+        "drum_pad_6": {
+          "$ref": "#/$defs/control",
+          "description": "Pad 6 (record 62)"
+        },
+        "drum_pad_7": {
+          "$ref": "#/$defs/control",
+          "description": "Pad 7 (record 63)"
+        },
+        "drum_pad_8": {
+          "$ref": "#/$defs/control",
+          "description": "Pad 8 (record 64)"
+        },
+        "expression": {
+          "$ref": "#/$defs/control",
+          "description": "Expression (record 65)"
+        },
+        "sustain": {
+          "$ref": "#/$defs/control",
+          "description": "Sustain (record 66)"
+        },
+        "mod": {
+          "$ref": "#/$defs/control",
+          "description": "Mod (joy Y) (record 67)"
+        },
+        "pitch": {
+          "$ref": "#/$defs/control",
+          "description": "Pitch (joy X) (record 68)"
+        },
+        "touchpad_x1": {
+          "$ref": "#/$defs/control",
+          "description": "XY pad X1 (record 69)"
+        },
+        "touchpad_y1": {
+          "$ref": "#/$defs/control",
+          "description": "XY pad Y1 (record 70)"
+        },
+        "touchpad_x2": {
+          "$ref": "#/$defs/control",
+          "description": "XY pad X2 (record 71)"
+        },
+        "touchpad_y2": {
+          "$ref": "#/$defs/control",
+          "description": "XY pad Y2 (record 72)"
+        },
+        "rewind": {
+          "$ref": "#/$defs/control",
+          "description": "Rewind (record 73)"
+        },
+        "forward": {
+          "$ref": "#/$defs/control",
+          "description": "Forward (record 74)"
+        },
+        "stop": {
+          "$ref": "#/$defs/control",
+          "description": "Stop (record 75)"
+        },
+        "play": {
+          "$ref": "#/$defs/control",
+          "description": "Play (record 76)"
+        },
+        "record": {
+          "$ref": "#/$defs/control",
+          "description": "Record (record 77)"
+        },
+        "loop": {
+          "$ref": "#/$defs/control",
+          "description": "Loop (record 78)"
+        },
+        "extra_1": {
+          "$ref": "#/$defs/control",
+          "description": "Extra 1 (record 79)"
+        },
+        "extra_2": {
+          "$ref": "#/$defs/control",
+          "description": "Extra 2 (record 80)"
+        },
+        "extra_3": {
+          "$ref": "#/$defs/control",
+          "description": "Extra 3 (record 81)"
+        },
+        "extra_4": {
+          "$ref": "#/$defs/control",
+          "description": "Extra 4 (record 82)"
+        },
+        "extra_5": {
+          "$ref": "#/$defs/control",
+          "description": "Extra 5 (record 83)"
+        },
+        "extra_6": {
+          "$ref": "#/$defs/control",
+          "description": "Extra 6 (record 84)"
+        },
+        "extra_7": {
+          "$ref": "#/$defs/control",
+          "description": "Extra 7 (record 85)"
+        },
+        "extra_8": {
+          "$ref": "#/$defs/control",
+          "description": "Extra 8 (record 86)"
+        },
+        "extra_9": {
+          "$ref": "#/$defs/control",
+          "description": "Extra 9 (record 87)"
+        },
+        "extra_10": {
+          "$ref": "#/$defs/control",
+          "description": "Extra 10 (record 88)"
+        },
+        "extra_11": {
+          "$ref": "#/$defs/control",
+          "description": "Extra 11 (record 89)"
+        },
+        "extra_12": {
+          "$ref": "#/$defs/control",
+          "description": "Extra 12 (record 90)"
+        }
+      }
+    },
+    "_raw": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "header": {
+          "type": "string"
+        },
+        "trailer": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "control": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "maxLength": 8,
+          "pattern": "^[ -~]*$",
+          "description": "LCD label, printable ASCII"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "enum": [
+                "bank_change",
+                "cc",
+                "drum_note",
+                "mmc",
+                "none",
+                "note",
+                "nrpn",
+                "pitch_bend",
+                "program_change",
+                "realtime",
+                "rpn",
+                "sysex",
+                "template"
+              ]
+            },
+            {
+              "type": "string",
+              "pattern": "^type_[0-9]{1,3}$"
+            }
+          ],
+          "description": "Control type; type_N keeps codes not yet named"
+        },
+        "low": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16383,
+          "description": "LowVal (also MMC command, note number, template number)"
+        },
+        "high": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16383,
+          "description": "HighVal (also MMC device id)"
+        },
+        "number": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127,
+          "description": "CC number, or NRPN/RPN LSB"
+        },
+        "number_msb": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127,
+          "description": "NRPN/RPN MSB"
+        },
+        "channel": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127,
+          "description": "Raw channel code (encoding unconfirmed, docs/FORMAT.md +19)"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127,
+          "description": "Raw port routing code (encoding unconfirmed, docs/FORMAT.md +18)"
+        },
+        "value": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16383,
+          "description": "Stored control value"
+        },
+        "button_mode": {
+          "enum": [
+            "normal",
+            "momentary",
+            "toggle",
+            "step",
+            "bits_12",
+            "bits_20",
+            "bits_24",
+            "bits_28"
+          ]
+        },
+        "display": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127,
+          "description": "Display type code: 0 = 0-127, 1 = -64/+63, others unconfirmed"
+        },
+        "step": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127,
+          "description": "Step size for STEP buttons"
+        },
+        "sysex": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "data_type": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 127,
+              "description": "0 NONE, 1 SINGLE, others unconfirmed"
+            },
+            "length": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 127
+            },
+            "data_position": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 127
+            },
+            "data": {
+              "type": "array",
+              "maxItems": 12,
+              "items": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 127
+              }
+            }
+          }
+        },
+        "_raw": {
+          "type": "string",
+          "pattern": "^([0-9a-f]{2} ){40}[0-9a-f]{2}$",
+          "description": "Original 41-byte record; bytes not covered by fields come from here"
+        }
+      }
+    }
+  }
+}

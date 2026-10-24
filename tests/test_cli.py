@@ -1,8 +1,8 @@
 import json
 
-from conftest import BULK, V_STATION_1
 from typer.testing import CliRunner
 
+from conftest import BULK, V_STATION_1
 from slcfg.cli import app
 
 runner = CliRunner()
