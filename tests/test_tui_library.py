@@ -4,7 +4,7 @@ import asyncio
 
 from textual.widgets import DataTable, Input, Static
 
-from conftest import BULK, V_STATION_1
+from conftest import BULK, V_STATION_1, wait_for
 from slcfg import codec, midi_io
 from slcfg.library import Library
 from slcfg.sysex import split_messages
@@ -111,9 +111,7 @@ def test_send_all_requires_confirm():
             await pilot.pause()
             assert port.sent == []  # nothing before "Send"
             await pilot.click("#confirm-yes")
-            await pilot.pause()
-            await app.workers.wait_for_complete()
-            await pilot.pause()
+            await wait_for(pilot, lambda: "sent 40" in status(app))
             assert len(port.sent) == 40
             assert b"".join(port.sent) == BULK.read_bytes()
             assert "sent 40" in status(app)
@@ -130,9 +128,7 @@ def test_send_slot_requires_confirm():
             await pilot.pause()
             assert isinstance(app.screen, ConfirmSend)
             await pilot.click("#confirm-yes")
-            await pilot.pause()
-            await app.workers.wait_for_complete()
-            await pilot.pause()
+            await wait_for(pilot, lambda: bool(port.sent))
             assert port.sent == [split_messages(BULK.read_bytes())[0].data]
 
     run(go())
@@ -146,24 +142,16 @@ def test_receive_all_fills_table():
         async with app.run_test(size=SIZE) as pilot:
             assert cell(app, 40, 1) == "(empty)"
             await pilot.click("#lib-receive")
-            await pilot.pause()
-            await app.workers.wait_for_complete()
-            await pilot.pause()
-            await pilot.pause()
+            await wait_for(pilot, lambda: "received 40" in status(app))
             assert cell(app, 40, 1).startswith("Ableton Live Automap")
             assert all(cell(app, s, 4) == "" for s in range(1, 41))
             assert app.library.to_bytes() == BULK.read_bytes()
             assert "received 40" in status(app)
             await pilot.click("#lib-receive")  # inbox now empty except the junk message
-            await pilot.pause()
-            await app.workers.wait_for_complete()
-            await pilot.pause()
+            await wait_for(pilot, lambda: "skipped 1" in status(app))
             assert "skipped 1" in status(app)
             await pilot.click("#lib-receive")
-            await pilot.pause()
-            await app.workers.wait_for_complete()
-            await pilot.pause()
-            await pilot.pause()
+            await wait_for(pilot, lambda: "nothing received" in status(app))
             assert "nothing received" in status(app)
 
     run(go())
@@ -228,9 +216,7 @@ def test_send_all_shows_progress_bar():
             await pilot.click("#lib-send-all")
             await pilot.pause()
             await pilot.click("#confirm-yes")
-            await pilot.pause()
-            await app.workers.wait_for_complete()
-            await pilot.pause()
+            await wait_for(pilot, lambda: "sent 40" in status(app))
             assert seen[0] == 0 and seen[-1] == 40  # shown at 0, filled to 40
             assert "active" not in bar.classes  # hidden again when done
             assert len(port.sent) == 40

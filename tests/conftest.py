@@ -19,6 +19,19 @@ def _no_tui_animation(request, monkeypatch):
         monkeypatch.setattr(textual.constants, "TEXTUAL_ANIMATIONS", "none")
 
 
+async def wait_for(pilot, condition, timeout: float = 10.0) -> None:
+    """Let the app run until ``condition()`` holds; background transfers finish on their
+    own schedule, so tests wait for the outcome instead of a fixed number of pauses."""
+    import time
+
+    deadline = time.monotonic() + timeout
+    while not condition():
+        if time.monotonic() > deadline:
+            raise AssertionError(f"timed out waiting for {condition}")
+        await pilot.pause(0.02)
+    await pilot.pause()
+
+
 @pytest.fixture
 def vstation() -> bytes:
     return V_STATION_1.read_bytes()
