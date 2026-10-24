@@ -61,6 +61,10 @@ uv run slcfg encode my.json -o my.syx
 uv run slcfg tui my.syx
 uv run slcfg tui my.syx --device "ReMOTE SL Port 1"
 
+# library: all 40 slots (bulk .syx, bundle .json or a folder); reorder, import/export,
+# save as one bulk .syx, receive/send all. 'l' in the editor opens it too
+uv run slcfg library dumps/community/novation-factory-os41/bulk/SL_Factory_Templates_OS41.syx
+
 # hardware
 uv run slcfg capture --device "ReMOTE SL Port 1"         # guided capture session
 uv run slcfg capture --simulate                          # rehearse it without the SL
@@ -99,8 +103,10 @@ src/slcfg/
   midi_io.py   MidiPort interface, FakeMidiPort, MidoPort, confirmed send
   capture.py   guided capture wizard: steps, annotated diffs, hypothesis checks
   simulate.py  pretend SL for rehearsing the wizard
+  library.py   40-slot library: load, reorder, import/export, bulk save
   cli.py       typer CLI
   tui/app.py   Textual editor (form, previews, send/receive)
+  tui/library.py library screen (40-slot table, bulk send/receive)
   tui/panel.py front panel laid out like the hardware
   tui/decor.py LCDs, LEDs, dot prints, keys (cosmetic, animated)
 scripts/demo/     records docs/demo.gif (uv run python scripts/demo/record.py)
