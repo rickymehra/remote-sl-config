@@ -27,3 +27,4 @@ Small calls made without the owner, newest last. Change any of them freely.
 | 21 | The control form moved under the panel; records 79–90 sit in a collapsed section | The panel needs about 180 columns; narrower terminals scroll it sideways |
 | 22 | Panel decor (neon dot prints, LIMITED EDITION badge, green strip frames, backlit LCDs, row LEDs, shaded keys) is animated by one 8 fps timer | Subtle motion, cheap to redraw; off when `TEXTUAL_ANIMATIONS=none` |
 | 23 | The LCDs show names over values of the selected control's row and light that row's LED, like Play mode | Same feedback as the hardware; values with display code 1 show as -64..+63 |
+| 24 | Out of scope: Automap and firmware (OS) updates | Owner does not use them; the tool covers templates, backups and (later) global settings |
