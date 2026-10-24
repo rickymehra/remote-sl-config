@@ -2,6 +2,7 @@
 
 import asyncio
 
+import pytest
 from textual.widgets import Input, Label, Static
 
 from conftest import V_STATION_1
@@ -64,6 +65,8 @@ def test_send_requires_confirm_dialog():
             await pilot.pause()
             await pilot.click("#confirm-yes")
             await pilot.pause()
+            await app.workers.wait_for_complete()
+            await pilot.pause()
             assert port.sent == [V_STATION_1.read_bytes()]
 
     run(go())
@@ -76,6 +79,8 @@ def test_receive_via_loopback_and_save(tmp_path):
             assert isinstance(app.port, midi_io.FakeMidiPort)
             app.port.inbox.append(V_STATION_1.read_bytes())
             await pilot.click("#receive")
+            await pilot.pause()
+            await app.workers.wait_for_complete()
             await pilot.pause()
             assert app.template.name.startswith("V-Station-1")
             app.query_one("#path", Input).value = str(tmp_path / "out")
@@ -173,6 +178,7 @@ def test_lcds_and_leds_follow_selection():
     run(go())
 
 
+@pytest.mark.animated
 def test_decor_animates_and_can_be_disabled():
     from slcfg.tui.decor import DotField
     from slcfg.tui.panel import FrontPanel
@@ -198,5 +204,44 @@ def test_decor_animates_and_can_be_disabled():
         still.animation_level = "none"
         async with still.run_test(size=(200, 60)):
             assert not still.query_one(FrontPanel).animating
+
+    run(go())
+
+
+class SilentPort:
+    """Behaves like hardware that never answers: receive() waits instead of returning at once."""
+
+    name = "Silent SL"
+
+    def send(self, message):
+        pass
+
+    def close(self):
+        pass
+
+    def receive(self, timeout):
+        import time
+
+        time.sleep(min(timeout, 0.05))
+        return None
+
+
+def test_receive_runs_in_background_and_can_be_cancelled():
+    async def go():
+        app = SLConfigApp(path=V_STATION_1, port=SilentPort())
+        async with app.run_test(size=(200, 60)) as pilot:
+            await pilot.click("#receive")
+            await pilot.pause(0.2)
+            # still listening, but the UI responds: select another control meanwhile
+            assert str(app.query_one("#receive").label) == "Cancel"
+            await pilot.click("#ctl-pot_1")
+            assert app.selected == "pot_1"
+            await pilot.click("#receive")  # Cancel
+            await pilot.pause()
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+            assert "cancelled" in str(app.query_one("#status", Static).render())
+            assert str(app.query_one("#receive").label) == "Receive"
+            assert app.template.name.startswith("V-Station-1")  # untouched
 
     run(go())

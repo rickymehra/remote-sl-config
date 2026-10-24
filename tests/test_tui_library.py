@@ -112,6 +112,8 @@ def test_send_all_requires_confirm():
             assert port.sent == []  # nothing before "Send"
             await pilot.click("#confirm-yes")
             await pilot.pause()
+            await app.workers.wait_for_complete()
+            await pilot.pause()
             assert len(port.sent) == 40
             assert b"".join(port.sent) == BULK.read_bytes()
             assert "sent 40" in status(app)
@@ -129,6 +131,8 @@ def test_send_slot_requires_confirm():
             assert isinstance(app.screen, ConfirmSend)
             await pilot.click("#confirm-yes")
             await pilot.pause()
+            await app.workers.wait_for_complete()
+            await pilot.pause()
             assert port.sent == [split_messages(BULK.read_bytes())[0].data]
 
     run(go())
@@ -143,14 +147,22 @@ def test_receive_all_fills_table():
             assert cell(app, 40, 1) == "(empty)"
             await pilot.click("#lib-receive")
             await pilot.pause()
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+            await pilot.pause()
             assert cell(app, 40, 1).startswith("Ableton Live Automap")
             assert all(cell(app, s, 4) == "" for s in range(1, 41))
             assert app.library.to_bytes() == BULK.read_bytes()
             assert "received 40" in status(app)
             await pilot.click("#lib-receive")  # inbox now empty except the junk message
             await pilot.pause()
+            await app.workers.wait_for_complete()
+            await pilot.pause()
             assert "skipped 1" in status(app)
             await pilot.click("#lib-receive")
+            await pilot.pause()
+            await app.workers.wait_for_complete()
+            await pilot.pause()
             await pilot.pause()
             assert "nothing received" in status(app)
 
@@ -192,5 +204,35 @@ def test_import_export_save_load(tmp_path):
             await pilot.press("escape")
             await pilot.pause()
             assert not isinstance(app.screen, LibraryScreen)
+
+    run(go())
+
+
+def test_send_all_shows_progress_bar():
+    from textual.widgets import ProgressBar
+
+    async def go():
+        port = midi_io.FakeMidiPort()
+        app = factory_app(port)
+        async with app.run_test(size=SIZE) as pilot:
+            bar = app.screen.query_one("#lib-progress", ProgressBar)
+            assert not bar.display or "active" not in bar.classes
+            seen = []
+            orig = bar.update
+
+            def spy(**kw):
+                seen.append(kw.get("progress"))
+                return orig(**kw)
+
+            bar.update = spy
+            await pilot.click("#lib-send-all")
+            await pilot.pause()
+            await pilot.click("#confirm-yes")
+            await pilot.pause()
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+            assert seen[0] == 0 and seen[-1] == 40  # shown at 0, filled to 40
+            assert "active" not in bar.classes  # hidden again when done
+            assert len(port.sent) == 40
 
     run(go())

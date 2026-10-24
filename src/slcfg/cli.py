@@ -191,7 +191,9 @@ def send(file: Path, device: DeviceOpt = None) -> None:
     if device is None:
         typer.echo("No --device given: using the fake port, nothing leaves this computer.")
     try:
-        n = midi_io.send_template(port, data, lambda s: typer.confirm(s, default=False))
+        n = midi_io.send_template(
+            port, data, lambda s: typer.confirm(s, default=False), progress=progress_printer("sent")
+        )
     except midi_io.SendCancelled:
         typer.echo("cancelled, nothing sent")
         raise typer.Exit(1) from None
@@ -210,7 +212,12 @@ def receive(
     """Wait for SysEx dumped from the device and save it raw to OUT."""
     port = midi_io.open_port(device)
     try:
-        msgs = midi_io.receive_dump(port, timeout=timeout, count=count)
+        msgs = midi_io.receive_dump(
+            port,
+            timeout=timeout,
+            count=count,
+            progress=progress_printer("received") if count > 1 else None,
+        )
     finally:
         port.close()
     if not msgs:
@@ -218,6 +225,19 @@ def receive(
         raise typer.Exit(1)
     out.write_bytes(b"".join(msgs))
     typer.echo(f"saved {len(msgs)} message(s) to {out}")
+
+
+def progress_printer(verb: str, width: int = 30):
+    """A one-line text progress bar for multi-message transfers (silent for single ones)."""
+
+    def show(done: int, total: int) -> None:
+        if total < 2:
+            return
+        filled = width * done // total
+        bar = "█" * filled + "░" * (width - filled)
+        typer.echo(f"\r  {bar} {verb} {done}/{total}", nl=done == total)
+
+    return show
 
 
 class _TyperUI:
@@ -229,6 +249,9 @@ class _TyperUI:
 
     def confirm(self, prompt: str) -> bool:
         return typer.confirm(prompt, default=False)
+
+    def progress(self, done: int, total: int) -> None:
+        progress_printer("received")(done, total)
 
 
 @app.command()

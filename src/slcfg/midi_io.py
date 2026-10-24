@@ -10,6 +10,7 @@ confirmation callback approves the exact bytes.
 
 from __future__ import annotations
 
+import threading
 import time
 from collections import deque
 from collections.abc import Callable, Iterable
@@ -138,11 +139,13 @@ def send_template(
     confirm: Callable[[str], bool],
     *,
     gap: float = 0.05,
+    progress: Callable[[int, int], None] | None = None,
 ) -> int:
     """Send every message in ``data`` after ``confirm`` approves. Returns messages sent.
 
     ``confirm`` receives a human-readable summary and must return True; anything else
-    raises :class:`SendCancelled` without sending a byte.
+    raises :class:`SendCancelled` without sending a byte. ``progress(done, total)`` is
+    called after each message.
     """
     msgs = split_messages(data)
     if not msgs:
@@ -152,23 +155,41 @@ def send_template(
         raise SendCancelled("send not confirmed")
     for i, msg in enumerate(msgs):
         port.send(msg.data)
+        if progress:
+            progress(i + 1, len(msgs))
         if gap and i + 1 < len(msgs) and not isinstance(port, FakeMidiPort):
             time.sleep(gap)  # pragma: no cover - give the SL time to store each template
     return len(msgs)
 
 
-def receive_dump(port: MidiPort, *, timeout: float = 30.0, count: int = 1) -> list[bytes]:
-    """Collect ``count`` SysEx messages (e.g. templates dumped from the device)."""
+def receive_dump(
+    port: MidiPort,
+    *,
+    timeout: float = 30.0,
+    count: int = 1,
+    cancel: threading.Event | None = None,
+    progress: Callable[[int, int], None] | None = None,
+) -> list[bytes]:
+    """Collect ``count`` SysEx messages (e.g. templates dumped from the device).
+
+    Stops early when ``cancel`` is set (checked at least every 0.25 s), returning what
+    arrived so far; safe to run in a worker thread. ``progress(received, count)`` is called
+    after each message.
+    """
     got: list[bytes] = []
     deadline = time.monotonic() + timeout
     while len(got) < count:
+        if cancel is not None and cancel.is_set():
+            break
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             break
-        msg = port.receive(min(remaining, 1.0))
+        msg = port.receive(min(remaining, 0.25))
         if msg is None:
             if isinstance(port, FakeMidiPort):
                 break
             continue
         got.append(msg)
+        if progress:
+            progress(len(got), count)
     return got

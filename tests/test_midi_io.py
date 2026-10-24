@@ -42,3 +42,30 @@ def test_open_port_defaults_to_fake():
     port = midi_io.open_port(None)
     assert isinstance(port, midi_io.FakeMidiPort)
     assert isinstance(port, midi_io.MidiPort)
+
+
+def test_progress_callbacks():
+    from conftest import BULK
+    from slcfg.sysex import split_messages
+
+    data = BULK.read_bytes()
+    port = midi_io.FakeMidiPort()
+    seen = []
+    assert (
+        midi_io.send_template(port, data, lambda s: True, progress=lambda d, t: seen.append((d, t)))
+        == 40
+    )
+    assert seen[0] == (1, 40) and seen[-1] == (40, 40) and len(seen) == 40
+    port = midi_io.FakeMidiPort(inbox=[m.data for m in split_messages(data)])
+    got = []
+    midi_io.receive_dump(port, count=40, timeout=1, progress=lambda d, t: got.append(d))
+    assert got == list(range(1, 41))
+
+
+def test_receive_can_be_cancelled():
+    import threading
+
+    cancel = threading.Event()
+    cancel.set()
+    port = midi_io.FakeMidiPort(inbox=[b"\xf0\x7d\xf7"])
+    assert midi_io.receive_dump(port, count=1, timeout=5, cancel=cancel) == []

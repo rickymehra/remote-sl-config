@@ -38,3 +38,7 @@ Small calls made without the owner, newest last. Change any of them freely.
 | 32 | A slot opened from the library is written back to that slot on Apply/Save, even if the editor's slot field changed | Never overwrites another slot by accident; move templates on the library screen |
 | 33 | Receive all merges arriving templates by slot and skips non-template messages | A partial dump does not wipe the rest of the library |
 | 34 | `library.read_templates` has its own small JSON reader instead of importing the CLI | Keeps library logic free of typer/Textual |
+| 35 | Sends and receives in the TUI run in worker threads; a running receive turns its button into Cancel | The UI stays live while waiting up to 2 minutes for the SL |
+| 36 | Progress bars only for multi-template transfers (receive/send all, C0 backup, `--count` > 1) | A single 4 KB template is instant; a bar would only flicker |
+| 37 | Library "changed vs factory" caches each template's encoding; `get()` drops the cache entry it hands out | Table refreshes went from ~0.7 s to instant; in-place edits after `get()` are still seen |
+| 38 | TUI tests run with animations off (autouse fixture; `@pytest.mark.animated` opts back in) | Animation timers are irrelevant to most tests |

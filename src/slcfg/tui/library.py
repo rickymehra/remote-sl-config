@@ -16,7 +16,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.screen import Screen
-from textual.widgets import Button, DataTable, Footer, Header, Input, Static
+from textual.widgets import Button, DataTable, Footer, Header, Input, ProgressBar, Static
 
 from .. import codec, midi_io
 from ..library import Library, LibraryError
@@ -38,7 +38,8 @@ class LibraryScreen(Screen[None]):
     LibraryScreen #lib-table { height: 1fr; border: round #39ff14; background: #101010; }
     LibraryScreen #lib-table > .datatable--header { color: #39ff14; background: #1b1b1b; }
     LibraryScreen #lib-table > .datatable--cursor { background: #39ff14; color: #101010; }
-    LibraryScreen #lib-status { height: 1; color: $warning; }
+    LibraryScreen #lib-status-row { height: 1; }
+    LibraryScreen #lib-status { height: 1; width: 1fr; color: $warning; }
     """
     BINDINGS = [
         Binding("e", "open", "Edit slot"),
@@ -73,7 +74,9 @@ class LibraryScreen(Screen[None]):
             yield Button("Send all", variant="warning", id="lib-send-all")
             yield Button("Back", id="lib-back")
         yield DataTable(id="lib-table", cursor_type="row", zebra_stripes=True)
-        yield Static("", id="lib-status")
+        with Horizontal(id="lib-status-row"):
+            yield Static("", id="lib-status")
+            yield ProgressBar(id="lib-progress", show_eta=False)
         yield Footer()
 
     def on_mount(self) -> None:
@@ -119,18 +122,13 @@ class LibraryScreen(Screen[None]):
         return path
 
     def _confirm_and_send(self, data: bytes, summary: str) -> None:
-        port = self.sl.port
-
         def done(ok: bool | None) -> None:
             if not ok:
                 self.set_status("send cancelled, nothing sent")
                 return
-            try:
-                n = midi_io.send_template(port, data, lambda _s: True)
-            except midi_io.MidiIOError as e:
-                self.set_status(f"send failed: {e}")
-                return
-            self.set_status(f"sent {n} message(s) to {port.name}")
+            self.sl.send_in_background(
+                data, self.set_status, self.query_one("#lib-progress", ProgressBar)
+            )
 
         self.app.push_screen(ConfirmSend(summary), done)
 
@@ -225,7 +223,16 @@ class LibraryScreen(Screen[None]):
 
     @on(Button.Pressed, "#lib-receive")
     def receive_all(self) -> None:
-        msgs = midi_io.receive_dump(self.sl.port, timeout=30.0, count=NUM_SLOTS)
+        self.sl.receive_in_background(
+            self.query_one("#lib-receive", Button),
+            NUM_SLOTS,
+            120.0,
+            self._received_all,
+            self.set_status,
+            self.query_one("#lib-progress", ProgressBar),
+        )
+
+    def _received_all(self, msgs: list[bytes]) -> None:
         if not msgs:
             self.set_status("nothing received (on the SL: Global > Template Dump, send all)")
             return

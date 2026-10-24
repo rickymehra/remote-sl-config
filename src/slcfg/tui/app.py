@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import copy
 import json
+import threading
+from collections.abc import Callable
 from pathlib import Path
 
 from textual import on
@@ -23,6 +25,7 @@ from textual.widgets import (
     Header,
     Input,
     Label,
+    ProgressBar,
     Select,
     Static,
     TabbedContent,
@@ -106,7 +109,10 @@ class SLConfigApp(App[None]):
     #tmpl-slot { width: 14; }
     #top Button, #actions Button { min-width: 8; margin-right: 1; }
     #panel-scroll { height: auto; max-height: 60%; }
-    #status { height: 1; color: $warning; }
+    #status-row { height: 1; }
+    #status { height: 1; width: 1fr; color: $warning; }
+    ProgressBar { display: none; width: 46; }
+    ProgressBar.active { display: block; }
     #bottom { height: 1fr; min-height: 12; }
     #editor { width: 1fr; padding: 0 1; border-top: solid $primary; }
     #side-title { height: 1; margin-left: 2; content-align: left middle; }
@@ -147,6 +153,7 @@ class SLConfigApp(App[None]):
         self.library_slot: int | None = None
         self.open_library = open_library
         self._reference: list[Library | None] = []  # factory bulk, loaded on first use
+        self._receive_cancel: threading.Event | None = None  # set while a receive is running
 
     # ---- layout -----------------------------------------------------------------------------
 
@@ -164,7 +171,9 @@ class SLConfigApp(App[None]):
             yield Input(placeholder="slot 1-40", id="tmpl-slot", max_length=2)
         with ScrollableContainer(id="panel-scroll"):
             yield FrontPanel(id="panel")
-        yield Static("", id="status")
+        with Horizontal(id="status-row"):
+            yield Static("", id="status")
+            yield ProgressBar(id="progress", show_eta=False)
         with Horizontal(id="bottom"):
             with VerticalScroll(id="editor"):
                 with Horizontal(id="actions"):
@@ -367,18 +376,22 @@ class SLConfigApp(App[None]):
             if not ok:
                 self.set_status("send cancelled, nothing sent")
                 return
-            try:
-                n = midi_io.send_template(self.port, data, lambda _s: True)
-            except midi_io.MidiIOError as e:
-                self.set_status(f"send failed: {e}")
-                return
-            self.set_status(f"sent {n} message(s) to {self.port.name}")
+            self.send_in_background(data, self.set_status, self.query_one("#progress", ProgressBar))
 
         self.push_screen(ConfirmSend(summary), done)
 
     @on(Button.Pressed, "#receive")
     def receive_pressed(self) -> None:
-        msgs = midi_io.receive_dump(self.port, timeout=5.0, count=1)
+        self.receive_in_background(
+            self.query_one("#receive", Button),
+            1,
+            30.0,
+            self._received_one,
+            self.set_status,
+            self.query_one("#progress", ProgressBar),
+        )
+
+    def _received_one(self, msgs: list[bytes]) -> None:
         if not msgs:
             self.set_status("nothing received (dump a template from the SL, then retry)")
             return
@@ -391,6 +404,95 @@ class SLConfigApp(App[None]):
         self.library_slot = None
         self.set_status(f"received template '{self.template.name}'")
         self.refresh_all()
+
+    def receive_in_background(
+        self,
+        button: Button,
+        count: int,
+        timeout: float,
+        done: Callable[[list[bytes]], None],
+        status: Callable[[str], None],
+        bar: ProgressBar | None = None,
+    ) -> None:
+        """Listen for ``count`` dumps in a worker thread so the UI stays live.
+
+        While listening, ``button`` reads "Cancel"; pressing it (or any receive button)
+        again stops the wait. ``done`` runs on the UI thread with what arrived.
+        """
+        if self._receive_cancel is not None:
+            self._receive_cancel.set()
+            return
+        cancel = threading.Event()
+        self._receive_cancel = cancel
+        label = button.label
+        button.label = "Cancel"
+        status(f"listening for {count} dump(s), up to {timeout:.0f} s; press Cancel to stop")
+        self._show_progress(bar, count)
+
+        def finish(msgs: list[bytes]) -> None:
+            self._receive_cancel = None
+            button.label = label
+            self._hide_progress(bar)
+            if cancel.is_set():
+                status(f"receive cancelled ({len(msgs)} message(s) arrived, discarded)")
+                return
+            done(msgs)
+
+        def work() -> None:
+            msgs = midi_io.receive_dump(
+                self.port,
+                timeout=timeout,
+                count=count,
+                cancel=cancel,
+                progress=self._progress_callback(bar) if count > 1 else None,
+            )
+            self.call_from_thread(finish, msgs)
+
+        self.run_worker(work, thread=True, group="receive", exit_on_error=False)
+
+    def send_in_background(
+        self, data: bytes, status: Callable[[str], None], bar: ProgressBar | None = None
+    ) -> None:
+        """Send an already confirmed transfer from a worker thread, with a progress bar for
+        multi-template sends (the SL needs a short pause between templates)."""
+        total = data.count(0xF7)
+        status(f"sending {total} message(s) to {self.port.name}…")
+        if total > 1:
+            self._show_progress(bar, total)
+
+        def finish(text: str) -> None:
+            self._hide_progress(bar)
+            status(text)
+
+        def work() -> None:
+            try:
+                n = midi_io.send_template(
+                    self.port, data, lambda _s: True, progress=self._progress_callback(bar)
+                )
+                text = f"sent {n} message(s) to {self.port.name}"
+            except midi_io.MidiIOError as e:
+                text = f"send failed: {e}"
+            self.call_from_thread(finish, text)
+
+        self.run_worker(work, thread=True, group="send", exit_on_error=False)
+
+    def _show_progress(self, bar: ProgressBar | None, total: int) -> None:
+        if bar is not None and total > 1:
+            bar.update(total=total, progress=0)
+            bar.add_class("active")
+
+    def _hide_progress(self, bar: ProgressBar | None) -> None:
+        if bar is not None:
+            bar.remove_class("active")
+
+    def _progress_callback(self, bar: ProgressBar | None) -> Callable[[int, int], None] | None:
+        if bar is None:
+            return None
+
+        def cb(done: int, total: int) -> None:
+            self.call_from_thread(bar.update, total=total, progress=done)
+
+        return cb
 
     # ---- library (tui/library.py) -----------------------------------------------------------
 

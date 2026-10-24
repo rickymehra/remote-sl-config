@@ -966,7 +966,12 @@ class Wizard:
             if prepare:  # simulated SL: synthesise this step's dump
                 prepare(step.id)
             ui.say(f"Listening… now on the SL: {step.dump}")
-            msgs = midi_io.receive_dump(self.port, timeout=self.timeout, count=step.count)
+            msgs = midi_io.receive_dump(
+                self.port,
+                timeout=self.timeout,
+                count=step.count,
+                progress=getattr(ui, "progress", None) if step.count > 1 else None,
+            )
             problem = self.validate(step, msgs)
             if not problem:
                 break

@@ -134,3 +134,15 @@ def test_load_errors(tmp_path):
     (tmp_path / "bad.json").write_text("{not json")
     with pytest.raises(LibraryError, match="bad.json"):
         Library.load(tmp_path / "bad.json")
+
+
+def test_differs_caches_encodings_but_sees_edits():
+    lib, ref = Library.load(BULK), Library.load(BULK)
+    assert not any(lib.differs(s, ref) for s in range(1, 41))
+    t = lib.get(3)
+    t2 = Library.from_templates([t]).get(3)
+    t2.controls["encoder_1"].number = 1
+    lib.put(3, t2)  # put stores a new object -> new encoding
+    assert lib.differs(3, ref) and not lib.differs(4, ref)
+    lib.swap(3, 4)  # moving keeps bodies; slot byte is not compared
+    assert lib.differs(4, ref) and lib.differs(3, ref)

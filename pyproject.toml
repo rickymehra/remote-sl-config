@@ -39,6 +39,7 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["animated: run Textual apps with animations on"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["slcfg", "conftest"]

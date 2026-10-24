@@ -68,6 +68,17 @@ def _check_slot(slot: int) -> int:
 class Library:
     def __init__(self) -> None:
         self.slots: list[Template | None] = [None] * NUM_SLOTS
+        # id(template) -> (template, encoded bytes from COMPARE_FROM on), for differs().
+        # Valid while the object is unchanged: put() stores a copy, moves only touch the slot
+        # byte (outside the compared range), and get() drops the entry it hands out.
+        self._bodies: dict[int, tuple[Template, bytes]] = {}
+
+    def _body(self, t: Template) -> bytes:
+        hit = self._bodies.get(id(t))
+        if hit is None or hit[0] is not t:
+            hit = (t, codec.encode(t)[COMPARE_FROM:])
+            self._bodies[id(t)] = hit
+        return hit[1]
 
     # ---- loading ----------------------------------------------------------------------------
 
@@ -105,7 +116,12 @@ class Library:
     # ---- access -----------------------------------------------------------------------------
 
     def get(self, slot: int) -> Template | None:
-        return self.slots[_check_slot(slot)]
+        """The template in ``slot``. Callers may edit it in place, so its cached encoding
+        is dropped; internal read-only paths use ``self.slots`` directly."""
+        t = self.slots[_check_slot(slot)]
+        if t is not None:
+            self._bodies.pop(id(t), None)
+        return t
 
     def filled(self) -> list[Template]:
         return [t for t in self.slots if t is not None]
@@ -180,13 +196,14 @@ class Library:
     def differs(self, slot: int, reference: Library) -> bool:
         """True if ``slot`` holds something other than ``reference`` has there, comparing the
         encoded bytes from the name on (framing, bulk flag and slot number are ignored)."""
-        a, b = self.get(slot), reference.get(slot)
+        i = _check_slot(slot)
+        a, b = self.slots[i], reference.slots[i]
         if a is None or b is None:
             return (a is None) != (b is None)
-        return codec.encode(a)[COMPARE_FROM:] != codec.encode(b)[COMPARE_FROM:]
+        return self._body(a) != reference._body(b)
 
     def summary(self, slot: int, reference: Library | None = None) -> SlotSummary:
-        t = self.get(slot)
+        t = self.slots[_check_slot(slot)]  # read-only: keep the cached encoding
         changed = None if reference is None else self.differs(slot, reference)
         if t is None:
             return SlotSummary(slot, "", 0, 0, 0, True, changed)

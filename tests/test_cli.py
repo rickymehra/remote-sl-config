@@ -90,3 +90,9 @@ def test_library_opens_tui_on_library(monkeypatch, tmp_path):
     assert tui.open_library and len(tui.library.filled()) == 40
     r = runner.invoke(app, ["library", str(tmp_path / "missing.syx")])
     assert r.exit_code != 0 and len(seen) == 1
+
+
+def test_bulk_send_shows_progress():
+    r = runner.invoke(app, ["send", str(BULK)], input="y\n")
+    assert r.exit_code == 0, r.output
+    assert "sent 40/40" in r.output and "█" * 30 in r.output
