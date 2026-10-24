@@ -19,6 +19,7 @@ slcfg = "slcfg.cli:app"
 dev = [
     "jsonschema>=4.26.0",
     "pytest>=8",
+    "pytest-timeout>=2.4.0",
     "ruff>=0.6",
 ]
 
@@ -39,6 +40,9 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# a hung test (e.g. a MIDI port that never closes) fails with every thread's stack dumped
+timeout = 120
+timeout_method = "thread"
 markers = ["animated: run Textual apps with animations on"]
 
 [tool.ruff.lint.isort]
