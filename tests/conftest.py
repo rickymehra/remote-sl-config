@@ -10,6 +10,15 @@ BULK = ROOT / "dumps/community/novation-factory-os41/bulk/SL_Factory_Templates_O
 
 
 @pytest.fixture(autouse=True)
+def _instant_buttons(monkeypatch):
+    """A Textual Button ignores clicks while its ~0.2 s "pressed" highlight is on, so two
+    quick pilot clicks on one button could drop the second on a slow CI runner."""
+    from textual.widgets import Button
+
+    monkeypatch.setattr(Button, "_start_active_affect", lambda self: None)
+
+
+@pytest.fixture(autouse=True)
 def _no_tui_animation(request, monkeypatch):
     """Textual apps in tests start with animations off (8 fps redraws make pilot tests slow).
     Mark a test ``@pytest.mark.animated`` to keep them on."""
