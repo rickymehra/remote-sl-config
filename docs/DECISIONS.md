@@ -28,3 +28,6 @@ Small calls made without the owner, newest last. Change any of them freely.
 | 22 | Panel decor (neon dot prints, LIMITED EDITION badge, green strip frames, backlit LCDs, row LEDs, shaded keys) is animated by one 8 fps timer | Subtle motion, cheap to redraw; off when `TEXTUAL_ANIMATIONS=none` |
 | 23 | The LCDs show names over values of the selected control's row and light that row's LED, like Play mode | Same feedback as the hardware; values with display code 1 show as -64..+63 |
 | 24 | Out of scope: Automap and firmware (OS) updates | Owner does not use them; the tool covers templates, backups and (later) global settings |
+| 25 | `slcfg capture` wizard holds the step instructions; a test keeps its step list in sync with CAPTURE_PLAN.md | One command for the hardware session; the doc stays the readable reference |
+| 26 | Controls touched in capture n are named `C<n> <code>` on the SL | Every capture double-checks the record order for free |
+| 27 | `--simulate` builds dumps from our current guesses and is labelled SIMULATED everywhere | Lets the flow be rehearsed and tested; must never be mistaken for evidence |

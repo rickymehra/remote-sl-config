@@ -53,6 +53,8 @@ uv run slcfg tui my.syx
 uv run slcfg tui my.syx --device "ReMOTE SL Port 1"
 
 # hardware
+uv run slcfg capture --device "ReMOTE SL Port 1"         # guided capture session
+uv run slcfg capture --simulate                          # rehearse it without the SL
 uv run slcfg ports
 uv run slcfg receive --device "ReMOTE SL Port 1" -o dump.syx
 uv run slcfg send my.json --device "ReMOTE SL Port 1"   # always asks to confirm
@@ -70,7 +72,7 @@ its original bytes in `_raw`. Edit the named fields; leave `_raw` alone.
    button 1 to send it. Button 2 sends all 40.
 5. `uv run slcfg diff before.syx after.syx` shows which record and field changed.
 
-Change **one thing per control** between dumps. The full plan is in
+Change **one thing per control** between dumps, or let `slcfg capture` guide you. The full plan is in
 [`docs/CAPTURE_PLAN.md`](docs/CAPTURE_PLAN.md).
 
 To load a template: Memory Protect **OFF** (Global menu), `slcfg send`, then press **WRITE**
@@ -86,6 +88,8 @@ src/slcfg/
   model.py     Template/Control dataclasses, control slots, validation
   codec.py     offset table + decode()/encode()
   midi_io.py   MidiPort interface, FakeMidiPort, MidoPort, confirmed send
+  capture.py   guided capture wizard: steps, annotated diffs, hypothesis checks
+  simulate.py  pretend SL for rehearsing the wizard
   cli.py       typer CLI
   tui/app.py   Textual editor (form, previews, send/receive)
   tui/panel.py front panel laid out like the hardware

@@ -220,6 +220,47 @@ def receive(
     typer.echo(f"saved {len(msgs)} message(s) to {out}")
 
 
+class _TyperUI:
+    def say(self, text: str = "") -> None:
+        typer.echo(text)
+
+    def ask(self, prompt: str, default: str = "") -> str:
+        return typer.prompt(prompt, default=default, show_default=False)
+
+    def confirm(self, prompt: str) -> bool:
+        return typer.confirm(prompt, default=False)
+
+
+@app.command()
+def capture(
+    device: DeviceOpt = None,
+    simulate: Annotated[
+        bool, typer.Option("--simulate", help="Rehearse against a pretend SL (no hardware)")
+    ] = False,
+    step: Annotated[str | None, typer.Option(help="Run only this step, e.g. C4")] = None,
+    redo: Annotated[bool, typer.Option(help="Run steps already captured again")] = False,
+    folder: Annotated[Path | None, typer.Option(help="Where captures are saved")] = None,
+    timeout: Annotated[float, typer.Option(help="Seconds to wait for each dump")] = 120.0,
+) -> None:
+    """Guided hardware capture session (docs/CAPTURE_PLAN.md). Resumes where you stopped."""
+    from .capture import Wizard
+    from .simulate import SimulatedSL
+
+    root = Path(__file__).resolve().parents[2]
+    if simulate:
+        port: midi_io.MidiPort = SimulatedSL(root)
+        folder = folder or root / "dumps/captures-sim"
+    elif device:
+        port = midi_io.open_port(device)
+        folder = folder or root / "dumps/captures"
+    else:
+        raise typer.BadParameter("give --device 'ReMOTE SL Port 1', or --simulate to rehearse")
+    try:
+        Wizard(port, _TyperUI(), folder, root, timeout=timeout, simulated=simulate).run(step, redo)
+    finally:
+        port.close()
+
+
 @app.command()
 def tui(file: Annotated[Path | None, typer.Argument()] = None, device: DeviceOpt = None) -> None:
     """Open the template editor."""

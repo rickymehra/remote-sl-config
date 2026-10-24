@@ -9,3 +9,7 @@ build/
 .DS_Store
 # local hardware captures are committed deliberately into dumps/; scratch output is not
 /out/
+# agent worktrees
+.claude/worktrees/
+# capture rehearsals (slcfg capture --simulate)
+/dumps/captures-sim/

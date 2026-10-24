@@ -31,6 +31,7 @@ packages = ["src/slcfg"]
 
 [tool.ruff]
 line-length = 100
+extend-exclude = [".claude"]
 target-version = "py312"
 
 [tool.ruff.lint]

@@ -4,6 +4,29 @@ Goal: turn every **guess** in `docs/FORMAT.md` into **confirmed** with as few du
 possible. About 90 minutes, **13 captures**. Tracked in issue #11 ("Hardware session"),
 with one issue per open question (#1–#10).
 
+## The easy way: the capture wizard
+
+```sh
+uv run slcfg capture --device "ReMOTE SL Port 1"
+```
+
+It walks through every step below in order. For each step it shows what to change, listens
+for the dump, saves `dumps/captures/C<n>.syx` with a sidecar note, prints the changes by
+control and field, and checks the FORMAT.md guesses on the spot (✔ confirmed, ★ new value,
+⚠ contradiction). Step C12 sends a template to the SL; you confirm before anything is sent.
+At the end it writes `dumps/captures/FINDINGS.md` for the next session.
+
+- Stop any time with `q`; run the same command again to resume.
+- `--step C4` redoes a single step; `--redo` goes through all of them again.
+- **Name every control you touch `C<n> <code>`** on the SL, e.g. `C2 E1`. The codes are E = encoder,
+  P = pot, S = slider, A/B/C/D = button rows 1–4, K = drum pad, X1 Y1 X2 Y2 = touchpad,
+  JX JY = joystick, SU = sustain, EX = expression. The wizard uses the names to confirm the
+  record order.
+- Rehearse now, without the keyboard: `uv run slcfg capture --simulate` (writes to
+  `dumps/captures-sim/`, ignored by git; its results only echo our own guesses).
+
+The manual commands below still work if you prefer them.
+
 ## Why so few captures
 
 Each control has its own 41-byte record, so a change to encoder 1 can never land in encoder
