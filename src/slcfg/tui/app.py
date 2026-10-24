@@ -68,8 +68,9 @@ class ConfirmSend(ModalScreen[bool]):
 
     DEFAULT_CSS = """
     ConfirmSend { align: center middle; }
-    #dialog { width: 64; height: auto; border: thick $warning; padding: 1 2; background: $surface; }
+    #dialog { width: 80; height: auto; border: thick $warning; padding: 1 2; background: $surface; }
     #dialog Horizontal { height: auto; margin-top: 1; }
+    #dialog Label { width: 100%; }
     """
 
     def __init__(self, summary: str) -> None:
@@ -344,7 +345,8 @@ class SLConfigApp(App[None]):
         except (ValidationError, codec.CodecError) as e:
             self.set_status(f"cannot send: {e}")
             return
-        summary = f"Send '{self.template.name}' ({midi_io.describe(data)}) to {self.port.name!r}"
+        name = " ".join(self.template.name.split())
+        summary = f"Send '{name}' ({midi_io.describe(data)}) to {self.port.name!r}"
 
         def done(ok: bool | None) -> None:
             if not ok:

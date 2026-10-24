@@ -5,6 +5,8 @@ A macOS-friendly replacement for Novation's ReMOTE SL Template Editor, for the
 ZeRO SL). Templates live as JSON, edit in a terminal UI, and travel to and from the keyboard
 as SysEx.
 
+![slcfg editing a template: pick controls on the panel, rename one, diff, send](docs/demo.gif)
+
 The template format is undocumented. This repo reverse-engineers it from 129 public
 templates. A hardware session will confirm the rest.
 
@@ -45,7 +47,8 @@ uv run slcfg diff a.syx b.syx --view all        # raw, 7-bit-unpacked and nibbli
 uv run slcfg decode my.syx -o my.json
 uv run slcfg encode my.json -o my.syx
 
-# editor (fake loopback port unless --device is given)
+# editor: panel laid out like the 37 SL (fake loopback port unless --device is given)
+# TEXTUAL_ANIMATIONS=none turns the panel animation off
 uv run slcfg tui my.syx
 uv run slcfg tui my.syx --device "ReMOTE SL Port 1"
 
@@ -84,7 +87,10 @@ src/slcfg/
   codec.py     offset table + decode()/encode()
   midi_io.py   MidiPort interface, FakeMidiPort, MidoPort, confirmed send
   cli.py       typer CLI
-  tui/app.py   Textual editor
+  tui/app.py   Textual editor (form, previews, send/receive)
+  tui/panel.py front panel laid out like the hardware
+  tui/decor.py LCDs, LEDs, dot prints, keys (cosmetic, animated)
+scripts/demo/     records docs/demo.gif (uv run python scripts/demo/record.py)
 dumps/community/  public templates + sidecars (source, author, license)
 docs/             FORMAT, CAPTURE_PLAN, DECISIONS
 schema/           JSON Schema for template files
