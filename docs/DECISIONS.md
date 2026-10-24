@@ -31,3 +31,10 @@ Small calls made without the owner, newest last. Change any of them freely.
 | 25 | `slcfg capture` wizard holds the step instructions; a test keeps its step list in sync with CAPTURE_PLAN.md | One command for the hardware session; the doc stays the readable reference |
 | 26 | Controls touched in capture n are named `C<n> <code>` on the SL | Every capture double-checks the record order for free |
 | 27 | `--simulate` builds dumps from our current guesses and is labelled SIMULATED everywhere | Lets the flow be rehearsed and tested; must never be mistaken for evidence |
+| 28 | Library keeps slots as loaded; moving only rewrites the slot byte (12), never the bulk flag (7) | Unchanged library saves byte for byte; the device's use of byte 7 is unconfirmed |
+| 29 | "Changed vs factory" compares encoded bytes from the name (13) on with the factory template in the same slot | Ignores framing, bulk flag and slot number; a moved template counts as changed |
+| 30 | `move` reorders like a list; `swap` exchanges two slots (the TUI's up/down use `swap`) | Distinct, predictable operations |
+| 31 | Two templates for one slot when loading is an error | Silent renumbering would change header bytes nobody asked to change |
+| 32 | A slot opened from the library is written back to that slot on Apply/Save, even if the editor's slot field changed | Never overwrites another slot by accident; move templates on the library screen |
+| 33 | Receive all merges arriving templates by slot and skips non-template messages | A partial dump does not wipe the rest of the library |
+| 34 | `library.read_templates` has its own small JSON reader instead of importing the CLI | Keeps library logic free of typer/Textual |

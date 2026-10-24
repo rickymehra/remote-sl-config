@@ -83,7 +83,8 @@ class ConfirmSend(ModalScreen[bool]):
         with Vertical(id="dialog"):
             yield Label(self.summary, id="confirm-summary")
             yield Label(midi_io.HARDWARE_WARNING, id="confirm-warning")
-            yield Label("This overwrites the SL's edit buffer. Continue?")
+            yield Label("This overwrites the SL's edit buffer (a single template) or its stored")
+            yield Label("templates (a full library send). Continue?")
             with Horizontal():
                 yield Button("Send", variant="error", id="confirm-yes")
                 yield Button("Cancel", variant="primary", id="confirm-no")
