@@ -309,27 +309,27 @@
         },
         "mod": {
           "$ref": "#/$defs/control",
-          "description": "Mod (joy Y) (record 67)"
+          "description": "Joy Y (record 67)"
         },
         "pitch": {
           "$ref": "#/$defs/control",
-          "description": "Pitch (joy X) (record 68)"
+          "description": "Joy X (record 68)"
         },
         "touchpad_x1": {
           "$ref": "#/$defs/control",
-          "description": "XY pad X1 (record 69)"
+          "description": "Touch X1 (record 69)"
         },
         "touchpad_y1": {
           "$ref": "#/$defs/control",
-          "description": "XY pad Y1 (record 70)"
+          "description": "Touch Y1 (record 70)"
         },
         "touchpad_x2": {
           "$ref": "#/$defs/control",
-          "description": "XY pad X2 (record 71)"
+          "description": "Touch X2 (record 71)"
         },
         "touchpad_y2": {
           "$ref": "#/$defs/control",
-          "description": "XY pad Y2 (record 72)"
+          "description": "Touch Y2 (record 72)"
         },
         "rewind": {
           "$ref": "#/$defs/control",

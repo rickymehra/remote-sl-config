@@ -127,13 +127,15 @@ class SLConfigApp(App[None]):
     #panel { width: 3fr; }
     #side { width: 38; border-left: solid $primary; padding: 0 1; }
     .row-title { color: $text-muted; height: 1; }
-    .ctlrow { grid-size: 8; grid-gutter: 0 1; height: 3; }
-    .ctlrow6 { grid-size: 6; grid-gutter: 0 1; height: 3; }
-    .ctl { width: 100%; min-width: 4; height: 3; }
+    .ctlrow { grid-size: 8; grid-gutter: 0 0; height: 3; }
+    .ctlrow6 { grid-size: 6; grid-gutter: 0 0; height: 3; }
+    .ctl { width: 100%; min-width: 4; height: 3; padding: 0; }
     .ctl.selected { background: $accent; }
     #halves { height: auto; }
     #left, #right { width: 1fr; height: auto; padding-right: 1; }
-    #misc { width: 26; height: auto; }
+    #misc { width: 16; height: auto; padding-right: 1; }
+    #tmpl-name { width: 1fr; }
+    #tmpl-slot { width: 14; }
     #misc .ctl { height: 3; }
     #status { height: 1; color: $warning; }
     #bottom { height: 14; }
@@ -180,7 +182,7 @@ class SLConfigApp(App[None]):
                     yield Input(placeholder="slot 1-40", id="tmpl-slot", max_length=2)
                 with Horizontal(id="halves"):
                     with Vertical(id="misc"):
-                        yield Label("Touchpad / joystick / pedals", classes="row-title")
+                        yield Label("XY/joy/pedals", classes="row-title")
                         for key in SIDE_KEYS:
                             yield self._ctl_button(key)
                     with Vertical(id="left"):
