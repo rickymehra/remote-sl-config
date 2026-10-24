@@ -85,3 +85,63 @@ def test_receive_via_loopback_and_save(tmp_path):
         assert (tmp_path / "out.json").exists()
 
     run(go())
+
+
+def test_panel_geometry_matches_hardware():
+    """Controls sit where they are on the SL (player's view, rear at the top)."""
+
+    async def go():
+        app = SLConfigApp(path=V_STATION_1)
+        async with app.run_test(size=(200, 60)):
+            r = {
+                s: app.query_one(f"#ctl-{s}").region
+                for s in (
+                    "button_row1_1",
+                    "encoder_1",
+                    "button_row2_1",
+                    "pot_1",
+                    "drum_pad_1",
+                    "slider_1",
+                    "button_row3_1",
+                    "button_row4_1",
+                    "rewind",
+                    "record",
+                    "loop",
+                    "mod",
+                    "pitch",
+                    "touchpad_x1",
+                    "touchpad_y2",
+                    "expression",
+                    "sustain",
+                    "encoder_8",
+                    "slider_8",
+                )
+            }
+            keys = app.query_one("#keys").region
+
+            def above(a, b):
+                return r[a].y < r[b].y
+
+            # left half, rear to front
+            assert above("button_row1_1", "encoder_1")
+            assert above("encoder_1", "button_row2_1")
+            assert above("button_row2_1", "pot_1")
+            assert above("pot_1", "drum_pad_1")
+            # right half: sliders (two rows deep) at the rear, then rows 3 and 4, transport
+            assert r["slider_1"].height == 2 * r["encoder_1"].height
+            assert r["slider_1"].y == r["button_row1_1"].y
+            assert r["button_row3_1"].y == r["button_row2_1"].y
+            assert r["button_row4_1"].y == r["pot_1"].y
+            assert r["rewind"].y == r["drum_pad_1"].y
+            # columns run left to right; right half is right of the left half
+            assert r["encoder_1"].x < r["encoder_8"].x < r["slider_1"].x < r["slider_8"].x
+            # transport as printed: ... loop, record
+            assert r["rewind"].x < r["loop"].x < r["record"].x
+            # joystick and touchpad at the far left; touchpad beside the keys
+            assert r["mod"].x < r["encoder_1"].x and above("mod", "touchpad_x1")
+            assert r["touchpad_y2"].right <= keys.x and r["touchpad_x1"].y >= keys.y
+            assert keys.y > r["drum_pad_1"].y
+            # pedals are on the rear strip
+            assert above("expression", "button_row1_1") and above("sustain", "button_row1_1")
+
+    run(go())

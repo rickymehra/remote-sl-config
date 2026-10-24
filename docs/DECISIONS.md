@@ -23,3 +23,5 @@ Small calls made without the owner, newest last. Change any of them freely.
 | 17 | Pilot tests drive the TUI through `asyncio.run` (no pytest-asyncio) | One dependency fewer |
 | 18 | `jsonschema` is a dev dependency, used to test the schema against every dump | Keeps the schema and the codec in sync |
 | 19 | Header byte 7 is treated as a bulk-member flag but never rewritten | Unclear whether the SL cares when a bulk member is sent alone |
+| 20 | TUI panel follows the hardware geometry (rear at top), with fixed-function parts (LCDs, row-selects, mode buttons, octave, jacks) drawn dimmed | Easier to find a control by where it is on the keyboard; a test locks the geometry |
+| 21 | The control form moved under the panel; records 79–90 sit in a collapsed section | The panel needs about 180 columns; narrower terminals scroll it sideways |

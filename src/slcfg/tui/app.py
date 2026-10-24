@@ -1,6 +1,7 @@
 """Textual editor for ReMOTE SL templates.
 
-The grid mirrors the SL front panel; selecting a control opens it in the side form. All
+The panel (``panel.py``) is laid out like the hardware; selecting a control opens it in the
+form below. All
 hardware access goes through :mod:`slcfg.midi_io`; without ``--device`` a loopback fake port
 is used, and every send needs a confirmation dialog.
 """
@@ -14,7 +15,7 @@ from pathlib import Path
 from textual import on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Grid, Horizontal, Vertical, VerticalScroll
+from textual.containers import Grid, Horizontal, ScrollableContainer, Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import (
     Button,
@@ -42,32 +43,7 @@ from ..model import (
     check_name,
     check_range,
 )
-
-# Rows of the front panel, rear to front, as seen from the player (FORMAT.md "Layout").
-LEFT_ROWS = ["button_row1", "encoder", "button_row2", "pot", "drum_pad"]
-RIGHT_ROWS = ["slider", "button_row3", "button_row4"]
-ROW_TITLES = {
-    "button_row1": "Buttons row 1",
-    "encoder": "Encoders",
-    "button_row2": "Buttons row 2",
-    "pot": "Pots",
-    "drum_pad": "Drum pads",
-    "slider": "Sliders",
-    "button_row3": "Buttons row 3",
-    "button_row4": "Buttons row 4",
-}
-SIDE_KEYS = [
-    "touchpad_x1",
-    "touchpad_y1",
-    "touchpad_x2",
-    "touchpad_y2",
-    "pitch",
-    "mod",
-    "expression",
-    "sustain",
-]
-TRANSPORT_KEYS = ["rewind", "forward", "stop", "play", "loop", "record"]  # physical order
-EXTRA_KEYS = [s.key for s in SLOTS if s.group == "extra"]
+from .panel import FrontPanel, empty_label
 
 INT_FIELDS = [
     # (field, label, max)
@@ -120,27 +96,20 @@ class ConfirmSend(ModalScreen[bool]):
 class SLConfigApp(App[None]):
     TITLE = "slcfg - ReMOTE SL template editor"
     CSS = """
-    #top, #tmpl, #actions, #device { height: 3; }
-    #top Input { width: 1fr; }
-    #top Button, #actions Button { min-width: 8; margin-left: 1; }
-    #main { height: 1fr; }
-    #panel { width: 3fr; }
-    #side { width: 38; border-left: solid $primary; padding: 0 1; }
-    .row-title { color: $text-muted; height: 1; }
-    .ctlrow { grid-size: 8; grid-gutter: 0 0; height: 3; }
-    .ctlrow6 { grid-size: 6; grid-gutter: 0 0; height: 3; }
-    .ctl { width: 100%; min-width: 4; height: 3; padding: 0; }
-    .ctl.selected { background: $accent; }
-    #halves { height: auto; }
-    #left, #right { width: 1fr; height: auto; padding-right: 1; }
-    #misc { width: 16; height: auto; padding-right: 1; }
-    #tmpl-name { width: 1fr; }
+    #top, #tmpl, #actions { height: 3; }
+    #top Input, #tmpl-name { width: 1fr; }
     #tmpl-slot { width: 14; }
-    #misc .ctl { height: 3; }
+    #top Button, #actions Button { min-width: 8; margin-right: 1; }
+    #panel-scroll { height: auto; max-height: 60%; }
     #status { height: 1; color: $warning; }
-    #bottom { height: 14; }
-    .field-label { height: 1; margin-top: 1; }
-    #side Input, #side Select { width: 100%; }
+    #bottom { height: 1fr; min-height: 12; }
+    #editor { width: 1fr; padding: 0 1; border-top: solid $primary; }
+    #side-title { height: 1; margin-left: 2; content-align: left middle; }
+    #fields { grid-size: 6; grid-gutter: 0 1; height: auto; }
+    .field { height: 4; }
+    .field-label { height: 1; color: $text-muted; }
+    #fields Input, #fields Select { width: 100%; }
+    #previews { width: 1fr; border-top: solid $primary; }
     """
     BINDINGS = [
         Binding("ctrl+s", "save_json", "Save JSON"),
@@ -175,70 +144,46 @@ class SLConfigApp(App[None]):
             yield Button("Load", id="load")
             yield Button("Save JSON", id="save-json")
             yield Button("Save .syx", id="save-syx")
-        with Horizontal(id="main"):
-            with VerticalScroll(id="panel"):
-                with Horizontal(id="tmpl"):
-                    yield Input(placeholder="template name (48)", id="tmpl-name", max_length=48)
-                    yield Input(placeholder="slot 1-40", id="tmpl-slot", max_length=2)
-                with Horizontal(id="halves"):
-                    with Vertical(id="misc"):
-                        yield Label("XY/joy/pedals", classes="row-title")
-                        for key in SIDE_KEYS:
-                            yield self._ctl_button(key)
-                    with Vertical(id="left"):
-                        for group in LEFT_ROWS:
-                            yield from self._row(group)
-                    with Vertical(id="right"):
-                        for group in RIGHT_ROWS:
-                            yield from self._row(group)
-                        yield Label("Transport", classes="row-title")
-                        with Grid(classes="ctlrow6"):
-                            for key in TRANSPORT_KEYS:
-                                yield self._ctl_button(key)
-                        yield Label("Extra records 79-90 (purpose unknown)", classes="row-title")
-                        with Grid(classes="ctlrow6"):
-                            for key in EXTRA_KEYS[:6]:
-                                yield self._ctl_button(key)
-                        with Grid(classes="ctlrow6"):
-                            for key in EXTRA_KEYS[6:]:
-                                yield self._ctl_button(key)
-            with VerticalScroll(id="side"):
-                with Horizontal(id="device"):
-                    yield Button("Send to device", variant="warning", id="send")
-                    yield Button("Receive", id="receive")
-                yield Label("", id="side-title")
+            yield Button("Send to device", variant="warning", id="send")
+            yield Button("Receive", id="receive")
+        with Horizontal(id="tmpl"):
+            yield Input(placeholder="template name (48)", id="tmpl-name", max_length=48)
+            yield Input(placeholder="slot 1-40", id="tmpl-slot", max_length=2)
+        with ScrollableContainer(id="panel-scroll"):
+            yield FrontPanel(id="panel")
+        yield Static("", id="status")
+        with Horizontal(id="bottom"):
+            with VerticalScroll(id="editor"):
                 with Horizontal(id="actions"):
                     yield Button("Apply", variant="primary", id="apply")
                     yield Button("Revert", id="revert")
-                yield Label("Name (max 8)", classes="field-label")
-                yield Input(id="f-name", max_length=NAME_LEN)
-                yield Label("Type", classes="field-label")
-                yield Select(
-                    [(v, v) for v in CONTROL_TYPES.values()], id="f-type", allow_blank=False
-                )
-                yield Label("Button mode", classes="field-label")
-                yield Select(
-                    [(v, v) for v in BUTTON_MODES.values()], id="f-button_mode", allow_blank=False
-                )
-                for name, label, _ in INT_FIELDS:
-                    yield Label(label, classes="field-label")
-                    yield Input(id=f"f-{name}", restrict=r"[0-9]*", max_length=5)
-        yield Static("", id="status")
-        with TabbedContent(id="bottom"):
-            with TabPane("Hex preview", id="tab-hex"):
-                yield Static("", id="hex")
-            with TabPane("Diff vs loaded", id="tab-diff"):
-                yield Static("", id="diff")
+                    yield Label("", id="side-title")
+                with Grid(id="fields"):
+                    with Vertical(classes="field"):
+                        yield Label("Name (max 8)", classes="field-label")
+                        yield Input(id="f-name", max_length=NAME_LEN)
+                    with Vertical(classes="field"):
+                        yield Label("Type", classes="field-label")
+                        yield Select(
+                            [(v, v) for v in CONTROL_TYPES.values()], id="f-type", allow_blank=False
+                        )
+                    with Vertical(classes="field"):
+                        yield Label("Button mode", classes="field-label")
+                        yield Select(
+                            [(v, v) for v in BUTTON_MODES.values()],
+                            id="f-button_mode",
+                            allow_blank=False,
+                        )
+                    for name, label, _ in INT_FIELDS:
+                        with Vertical(classes="field"):
+                            yield Label(label, classes="field-label")
+                            yield Input(id=f"f-{name}", restrict=r"[0-9]*", max_length=5)
+            with TabbedContent(id="previews"):
+                with TabPane("Hex preview", id="tab-hex"):
+                    yield Static("", id="hex")
+                with TabPane("Diff vs loaded", id="tab-diff"):
+                    yield Static("", id="diff")
         yield Footer()
-
-    def _row(self, group: str) -> ComposeResult:
-        yield Label(ROW_TITLES[group], classes="row-title")
-        with Grid(classes="ctlrow"):
-            for i in range(1, 9):
-                yield self._ctl_button(f"{group}_{i}")
-
-    def _ctl_button(self, key: str) -> Button:
-        return Button(SLOT_BY_KEY[key].label, id=f"ctl-{key}", classes="ctl")
 
     def on_mount(self) -> None:
         if self.path:
@@ -269,7 +214,7 @@ class SLConfigApp(App[None]):
         for s in SLOTS:
             c = self.template.controls.get(s.key)
             btn = self.query_one(f"#ctl-{s.key}", Button)
-            btn.label = (c.name.strip() if c and c.name.strip() else s.label)[:8]
+            btn.label = (c.name.strip() if c and c.name.strip() else empty_label(s.key))[:8]
         self.select(self.selected)
 
     def select(self, key: str) -> None:

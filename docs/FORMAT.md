@@ -92,17 +92,23 @@ exposes only the named fields.
 | 72–77 | **transport** rewind, forward, stop, play, **record, loop** | confirmed | names; MMC command codes 05/04/01/02/06. Note: physical order is …play, loop, record |
 | 78–89 | **12 extra records** | guess | 13 of 89 dumps name them. Pro Tools: `Edit Mix AltView S-Mute Compare Bypass RTZ END Spare×4`. No control in the manual's Edit-mode list is left over, so these may be assignments for the 12 non-assignable buttons (8 row-selects + 4 scrolls) used by Automap, or unused. Capture C11 |
 
-Physical layout (owner's photo + oldgearguy's sheet), rear to front:
+Physical layout (owner's photos + oldgearguy's sheet), player's view, rear at the top:
 
 ```
-           LEFT HALF                          RIGHT HALF
- [touch- ] button row 1  (24-31)            sliders       (16-23)
- [ pad   ] encoders      ( 0-7 )            button row 3  (40-47)
- [joy-   ] button row 2  (32-39)            button row 4  (48-55)
- [ stick ] pots          ( 8-15)            transport     (72-77)
-           drum pads     (56-63)
-           ────────────────────── 37 keys ──────────────────────
+ rear jacks: MIDI1 IN OUT THRU · MIDI2 OUT · EXPRESSION (64) · SUSTAIN (65) · USB · 9V
+            ◂▸[ left LCD          ]   logo  [ right LCD          ]◂▸
+            ◂ button row 1 (24-31)   WRITE  sliders (16-23),      ▸
+            ◂ encoders      (0-7)    TEMPL  two rows deep
+            ◂ button row 2 (32-39)   EDIT   button row 3 (40-47)  ▸
+ joystick   ◂ pots         (8-15)    PLAY   button row 4 (48-55)  ▸
+ (66 Y, 67 X)◂ drum pads   (56-63)   GLOBAL/TAP, DATA  octave ◂▸  transport (72-77)
+ touchpad    ════════════════════════ 37 keys ═════════════════════════════
+ (68-71)
 ```
+
+◂/▸ = row-select buttons (not assignable). Transport is printed rewind, forward, stop, play,
+loop, record; the records store record before loop. The TUI panel (`tui/panel.py`) uses this
+geometry, and `tests/test_tui.py::test_panel_geometry_matches_hardware` checks it.
 
 ### 3.2 Record fields (offset inside the 41-byte record)
 
