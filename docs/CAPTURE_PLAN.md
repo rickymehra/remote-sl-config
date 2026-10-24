@@ -41,6 +41,14 @@ only be explained one way.
 
 ## Setup (once)
 
+Before anything else, confirm all of these (the wizard asks you to do the same at the start):
+
+- **Quit Ableton Live and any other DAW.** Template 40 makes Live take over the SL and send its own traffic.
+- **Power from USB or the PSU**, not batteries, so a dump or write cannot be cut off half way.
+- **Note the SL's OS version** (Global menu). The factory templates and this plan assume **OS 4.1**.
+  If yours differs, record it in `FINDINGS.md` as the first thing.
+- **Global → page 4 → Ports = U1** and **Memory Protect OFF** only for C12.
+
 1. Connect the SL by USB. Use the **ReMOTE SL Port 1** pair. Run `uv run slcfg ports` to check
    the names.
 2. On the SL: **Global → page 4 → Ports** = `U1` (where dumps are sent).
@@ -68,6 +76,7 @@ version is in `dumps/community/novation-factory-os41/36_-_-_User2.syx` to compar
 
 ### ☐ C0 – Full backup (do this first)
 Global p4 → **All** (button 2). Save as `C0_all.syx` with `--count 40 --timeout 120`.
+Also note the OS version (Global menu), as above.
 - Backs up all 40 templates before anything else.
 - Checks header byte 7 = `01` on bulk members and shows bytes 9–10 for a live "All" dump.
 - `slcfg diff` against `dumps/community/novation-factory-os41/bulk/…OS41.syx` shows any

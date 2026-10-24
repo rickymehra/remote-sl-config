@@ -112,7 +112,9 @@ def test_cancelled_send_skips_c12(tmp_path):
 
 def test_nothing_received_then_skip(tmp_path):
     ui = ScriptedUI(["", "s"])  # ready, then skip after the warning
-    Wizard(midi_io.FakeMidiPort(), ui, tmp_path, ROOT, timeout=0.1).run(only="C1")
+    Wizard(midi_io.FakeMidiPort(), ui, tmp_path, ROOT, timeout=0.1, preflight_checks=False).run(
+        only="C1"
+    )
     assert "nothing received" in ui.text and not Session(tmp_path).done("C1")
 
 
@@ -157,3 +159,17 @@ def test_cli_capture_requires_device_or_simulate(tmp_path):
 def test_simulated_dumps_decode(step_id):
     t = codec.decode(SimulatedSL(ROOT).dump(step_id))
     assert any(c.name.startswith(step_id + " ") for c in t.controls.values())
+
+
+def test_preflight_runs_on_hardware_and_gives_up_on_a_silent_sl(tmp_path):
+    ui = ScriptedUI(["", "4.1"])  # checklist, then the OS version
+    w = Wizard(midi_io.FakeMidiPort(), ui, tmp_path, ROOT, timeout=0.05)
+    w.preflight()
+    assert "quit ableton live" in ui.text.lower() and "OS 4.1" not in ui.text
+    assert Session(tmp_path).data["os_version"] == "4.1"
+
+    silent = ScriptedUI(["", "unknown"] + ["r"] * 5)  # always answer retry
+    Wizard(
+        midi_io.FakeMidiPort(), silent, tmp_path, ROOT, timeout=0.02, preflight_checks=False
+    ).run(only="C1")
+    assert "gave up on C1" in silent.text

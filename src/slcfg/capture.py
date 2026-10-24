@@ -599,6 +599,15 @@ def _table(rows: list[tuple[str, str]]) -> list[str]:
     return [f"  {a:<{w}}  {b}" for a, b in rows]
 
 
+PREFLIGHT = [
+    "Quit Ableton Live and any other DAW. Template 40 makes Live take over the SL.",
+    "The SL is on USB or the PSU, not batteries.",
+    "Global > page 4 > Ports = U1 (dumps are sent there).",
+    "Memory Protect is OFF only for C12 (the write test); leave it ON otherwise.",
+    "Template 36 (User2) is selected for the baseline steps.",
+]
+
+
 def build_steps(root: Path) -> list[Step]:
     factory = root / "dumps/community/novation-factory-os41"
     refs = {
@@ -917,6 +926,7 @@ class Wizard:
     root: Path
     timeout: float = 120.0
     simulated: bool = False
+    preflight_checks: bool = True  # the start-up checklist; tests with scripted answers skip it
     steps: list[Step] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -936,6 +946,8 @@ class Wizard:
             ui.say("SIMULATED SL: rehearsal only, results are not real findings.")
         else:
             ui.say(f"⚠ {midi_io.HARDWARE_WARNING}")
+            if self.preflight_checks:
+                self.preflight()
         for step in self.steps:
             if only and step.id.lower() != only.lower():
                 continue
@@ -947,6 +959,24 @@ class Wizard:
         left = [s.id for s in self.steps if not self.session.done(s.id)]
         ui.say(f"\nFindings written to {path}.")
         ui.say("All steps captured." if not left else f"Still to do: {', '.join(left)}")
+
+    def preflight(self) -> None:
+        """Checks that must hold before any step on real hardware. Enter continues; the
+        wizard does not verify them, so each one is the owner's to confirm."""
+        self.ui.say("\nBefore you start, confirm all of these:")
+        for line in PREFLIGHT:
+            self.ui.say(f"  [ ] {line}")
+        self.ui.ask("Press Enter when all are true", "")
+        version = self.ui.ask(
+            "SL OS version (Global menu; type 'unknown' if you cannot find it)", "unknown"
+        )
+        self.session.data["os_version"] = version.strip()
+        self.session.save()
+        if version.strip() not in ("4.1", "unknown"):
+            self.ui.say(
+                f"⚠ OS {version.strip()}: the factory templates and this plan assume OS 4.1."
+                " Note it in the findings; some formats may differ."
+            )
 
     def do_step(self, step: Step) -> bool:
         ui = self.ui
@@ -961,7 +991,7 @@ class Wizard:
             return True
         if step.sends and not self.send_test(step):
             return True
-        while True:
+        for _attempt in range(5):  # a stuck SL must not loop forever on the default answer
             prepare = getattr(self.port, "prepare", None)
             if prepare:  # simulated SL: synthesise this step's dump
                 prepare(step.id)
@@ -978,6 +1008,9 @@ class Wizard:
             ui.say(f"⚠ {problem}")
             if ui.ask("r = retry, s = skip", "r").strip().lower() == "s":
                 return True
+        else:
+            ui.say(f"gave up on {step.id} after 5 attempts; skipped")
+            return True
         files = self.save(step, msgs)
         ctx = Ctx(step, self.baseline(), msgs)
         findings: list[Finding] = []
