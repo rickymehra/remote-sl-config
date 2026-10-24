@@ -1,7 +1,8 @@
 # Capture plan (hardware session)
 
 Goal: turn every **guess** in `docs/FORMAT.md` into **confirmed** with as few dumps as
-possible. About 90 minutes, **13 captures**.
+possible. About 90 minutes, **13 captures**. Tracked in issue #11 ("Hardware session"),
+with one issue per open question (#1–#10).
 
 ## Why so few captures
 

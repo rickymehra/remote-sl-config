@@ -24,6 +24,7 @@ templates. A hardware session will confirm the rest.
 
 Details and evidence: [`docs/FORMAT.md`](docs/FORMAT.md). What to capture at home:
 [`docs/CAPTURE_PLAN.md`](docs/CAPTURE_PLAN.md). Judgement calls: [`docs/DECISIONS.md`](docs/DECISIONS.md).
+Open questions are GitHub issues #1–#10; the hardware session is #11.
 
 ## Install
 
