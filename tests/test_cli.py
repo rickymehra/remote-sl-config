@@ -77,3 +77,16 @@ def test_send_needs_confirmation():
 def test_receive_from_empty_fake(tmp_path):
     r = runner.invoke(app, ["receive", "-o", str(tmp_path / "x.syx"), "--timeout", "0.1"])
     assert r.exit_code == 1 and "nothing received" in r.output
+
+
+def test_library_opens_tui_on_library(monkeypatch, tmp_path):
+    from slcfg.tui.app import SLConfigApp
+
+    seen = []
+    monkeypatch.setattr(SLConfigApp, "run", lambda self: seen.append(self))
+    r = runner.invoke(app, ["library", str(BULK)])
+    assert r.exit_code == 0, r.output
+    (tui,) = seen
+    assert tui.open_library and len(tui.library.filled()) == 40
+    r = runner.invoke(app, ["library", str(tmp_path / "missing.syx")])
+    assert r.exit_code != 0 and len(seen) == 1

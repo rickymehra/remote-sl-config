@@ -269,5 +269,20 @@ def tui(file: Annotated[Path | None, typer.Argument()] = None, device: DeviceOpt
     SLConfigApp(path=file, device=device).run()
 
 
+@app.command()
+def library(
+    path: Annotated[Path | None, typer.Argument()] = None, device: DeviceOpt = None
+) -> None:
+    """Open the 40-slot template library (bulk .syx, bundle .json or a folder) in the TUI."""
+    from .library import Library, LibraryError
+    from .tui.app import SLConfigApp
+
+    try:
+        lib = Library.load(path) if path else Library()
+    except LibraryError as e:
+        raise typer.BadParameter(str(e)) from e
+    SLConfigApp(device=device, library=lib, open_library=True).run()
+
+
 if __name__ == "__main__":  # pragma: no cover
     app()
