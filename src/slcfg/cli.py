@@ -13,7 +13,11 @@ from .diff import diff_views, format_diff
 from .model import Template, ValidationError
 from .sysex import VIEWS, SysexError, split_messages
 
-app = typer.Typer(no_args_is_help=True, add_completion=False, help=__doc__)
+app = typer.Typer(
+    no_args_is_help=True,
+    add_completion=False,
+    help="Configure a Novation ReMOTE SL (Mk1): inspect, diff, decode/encode and send templates.",
+)
 
 BUNDLE_FORMAT = "slcfg-bundle/1"
 

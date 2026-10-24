@@ -94,8 +94,8 @@ RECORD_FIELDS: list[Field] = [
         "confirmed",
         "control type code (see CONTROL_TYPES)",
     ),
-    _u14("low", 9, "likely", "LowVal: MSB at +9, LSB at +10; MMC command / note / template no."),
-    _u14("high", 11, "likely", "HighVal: MSB at +11, LSB at +12; MMC device id"),
+    _u14("low", 9, "likely", "LowVal; +9/+10 byte order is a guess (MSB first). MMC cmd, note no."),
+    _u14("high", 11, "likely", "HighVal; same layout as low. MMC device id"),
     # +13 bits 2..4 = button mode; other bits stay in _raw
     Field(
         "button_mode",
