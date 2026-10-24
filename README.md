@@ -58,6 +58,7 @@ uv run slcfg encode my.json -o my.syx
 
 # editor: panel laid out like the 37 SL (fake loopback port unless --device is given)
 # TEXTUAL_ANIMATIONS=none turns the panel animation off
+# Automap templates (34, 37-40): controls owned by Automap are locked (blue); press a to toggle
 uv run slcfg tui my.syx
 uv run slcfg tui my.syx --device "ReMOTE SL Port 1"
 
@@ -103,6 +104,7 @@ src/slcfg/
   midi_io.py   MidiPort interface, FakeMidiPort, MidoPort, confirmed send
   capture.py   guided capture wizard: steps, annotated diffs, hypothesis checks
   simulate.py  pretend SL for rehearsing the wizard
+  automap.py   which controls of an Automap template are locked in the editor
   library.py   40-slot library: load, reorder, import/export, bulk save
   cli.py       typer CLI
   tui/app.py   Textual editor (form, previews, send/receive)

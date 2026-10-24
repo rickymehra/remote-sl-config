@@ -125,6 +125,8 @@ class FrontPanel(Widget):
     }}
     FrontPanel .ctl:hover {{ background: #3a3a3a; }}
     FrontPanel .ctl.selected {{ background: {SELECT_BRIGHT}; color: #101010; }}
+    FrontPanel .ctl.locked {{ background: #14263d; color: #7fb3ff; text-style: italic; }}
+    FrontPanel .ctl.locked.selected {{ background: #3a5f8f; color: #ffffff; }}
     FrontPanel .fixed {{ color: #6b6b6b; height: 3; content-align: center middle; }}
     FrontPanel .row {{ height: 3; width: auto; }}
     FrontPanel Lcd {{ width: {8 * CELL}; }}
@@ -250,6 +252,12 @@ class FrontPanel(Widget):
             btn.styles.background = mix(
                 Color.parse(SELECT_DIM), Color.parse(SELECT_BRIGHT), 0.55 + 0.45 * breathe(t, 2.4)
             )
+
+    def set_locked(self, keys: set[str]) -> None:
+        """Style Automap-owned controls (see automap.py) so they read as off-limits."""
+        for b in self.query(".ctl").results(Button):
+            key = (b.id or "").removeprefix("ctl-")
+            b.set_class(key in keys, "locked")
 
     def show(self, template: Template, selected: str) -> None:
         """Mark the selected control and update LCDs/LEDs the way the hardware would."""

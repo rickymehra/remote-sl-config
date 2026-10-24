@@ -33,6 +33,8 @@ from textual.widgets import (
 )
 
 from .. import codec, midi_io
+from ..automap import locked_slots
+from ..automap import profile as automap_profile
 from ..diff import diff_bytes, format_diff
 from ..library import Library
 from ..model import (
@@ -126,6 +128,7 @@ class SLConfigApp(App[None]):
         Binding("ctrl+s", "save_json", "Save JSON"),
         Binding("ctrl+e", "save_syx", "Save .syx"),
         Binding("l", "library", "Library"),
+        Binding("a", "toggle_automap_lock", "Automap lock"),
         Binding("q", "quit", "Quit"),
     ]
 
@@ -148,6 +151,9 @@ class SLConfigApp(App[None]):
         self.template: Template = blank_template()
         self.loaded_bytes: bytes = codec.encode(self.template)
         self.selected: str = "encoder_1"
+        # Automap templates: controls owned by Automap are read-only unless unlocked ("a")
+        self.automap_lock = True
+        self.locked: set[str] = set()
         # 40-slot library (tui/library.py); library_slot is set while editing one of its slots
         self.library = library if library is not None else Library()
         self.library_slot: int | None = None
@@ -230,10 +236,12 @@ class SLConfigApp(App[None]):
         self.path = path
         self.library_slot = None
         note = f" (first of {len(ts)})" if len(ts) > 1 else ""
-        self.set_status(f"loaded {path}{note}")
         self.refresh_all()
+        self.set_status(f"loaded {path}{note}{self._lock_note()}")
 
     def refresh_all(self) -> None:
+        self.locked = locked_slots(self.template) if self.automap_lock else set()
+        self.query_one(FrontPanel).set_locked(self.locked)
         self.query_one("#tmpl-name", Input).value = self.template.name
         self.query_one("#tmpl-slot", Input).value = str(self.template.slot)
         for s in SLOTS:
@@ -255,6 +263,14 @@ class SLConfigApp(App[None]):
         self.query_one("#f-button_mode", Select).value = c.button_mode
         for name, _, _ in INT_FIELDS:
             self.query_one(f"#f-{name}", Input).value = str(getattr(c, name))
+        locked = key in self.locked
+        for w in self.query("#fields Input, #fields Select"):
+            w.disabled = locked
+        self.query_one("#apply", Button).disabled = locked
+        if locked:
+            self.set_status(
+                f"{s.label} belongs to Automap in this template: read-only (a = unlock)"
+            )
         self.refresh_previews()
 
     def form_to_control(self) -> Control:
@@ -313,6 +329,9 @@ class SLConfigApp(App[None]):
 
     @on(Button.Pressed, "#apply")
     def apply(self) -> None:
+        if self.selected in self.locked:
+            self.set_status("locked: this control belongs to Automap (press a to unlock)")
+            return
         try:
             c = self.form_to_control()
             name = self.query_one("#tmpl-name", Input).value
@@ -402,8 +421,8 @@ class SLConfigApp(App[None]):
             return
         self.loaded_bytes = msgs[0]
         self.library_slot = None
-        self.set_status(f"received template '{self.template.name}'")
         self.refresh_all()
+        self.set_status(f"received template '{self.template.name}'{self._lock_note()}")
 
     def receive_in_background(
         self,
@@ -494,6 +513,28 @@ class SLConfigApp(App[None]):
 
         return cb
 
+    def _lock_note(self) -> str:
+        if not self.locked:
+            return ""
+        prof = automap_profile(self.template)
+        return f"; {prof} Automap template: {len(self.locked)} controls locked (a = unlock)"
+
+    def action_toggle_automap_lock(self) -> None:
+        prof = automap_profile(self.template)
+        if prof is None:
+            self.set_status("not an Automap template: nothing to lock")
+            return
+        self.automap_lock = not self.automap_lock
+        self.refresh_all()
+        if self.automap_lock:
+            self.set_status(
+                f"Automap lock ON: {len(self.locked)} {prof} Automap controls read-only"
+            )
+        else:
+            self.set_status(
+                "Automap lock OFF: Automap controls are editable; edits may break the DAW script"
+            )
+
     # ---- library (tui/library.py) -----------------------------------------------------------
 
     @property
@@ -522,7 +563,9 @@ class SLConfigApp(App[None]):
         if isinstance(self.screen, LibraryScreen):
             self.pop_screen()
         self.refresh_all()
-        self.set_status(f"editing library slot {slot}; Apply/Save updates the library")
+        self.set_status(
+            f"editing library slot {slot}; Apply/Save updates the library{self._lock_note()}"
+        )
 
     def library_moved(self, a: int, b: int) -> None:
         """Slots ``a`` and ``b`` were swapped: keep pointing at the template being edited."""
