@@ -42,3 +42,5 @@ Small calls made without the owner, newest last. Change any of them freely.
 | 36 | Progress bars only for multi-template transfers (receive/send all, C0 backup, `--count` > 1) | A single 4 KB template is instant; a bar would only flicker |
 | 37 | Library "changed vs factory" caches each template's encoding; `get()` drops the cache entry it hands out | Table refreshes went from ~0.7 s to instant; in-place edits after `get()` are still seen |
 | 38 | TUI tests run with animations off (autouse fixture; `@pytest.mark.animated` opts back in) | Animation timers are irrelevant to most tests |
+| 39 | `--device` takes the exact port name or a unique, case-insensitive part of it | OSes decorate port names (Linux adds client numbers); a typo lists the available ports |
+| 40 | Real MIDI path is tested against virtual ports, required on macOS CI and skipped where no MIDI system exists | Catches bugs in mido/rtmidi/large-SysEx handling before the hardware session; not evidence about the SL itself |

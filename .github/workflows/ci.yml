@@ -28,4 +28,7 @@ jobs:
       - run: uv sync --locked
       - run: uv run ruff check .
       - run: uv run ruff format --check .
-      - run: uv run pytest -q
+      - run: uv run pytest -q -rs
+        env:
+          # macOS has CoreMIDI virtual ports: the MIDI loopback tests must run there, not skip
+          SLCFG_REQUIRE_VIRTUAL_MIDI: ${{ runner.os == 'macOS' && '1' || '0' }}

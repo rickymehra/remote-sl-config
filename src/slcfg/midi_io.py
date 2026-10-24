@@ -74,8 +74,29 @@ class FakeMidiPort:
         self.closed = True
 
 
+def resolve_port_name(name: str, available: list[str], kind: str = "MIDI") -> str:
+    """Exact port name, else the one port whose name contains ``name`` (case-insensitive).
+
+    OSes decorate names (Linux: "ReMOTE SL:ReMOTE SL MIDI 1 20:0"), so "ReMOTE SL Port 1" or
+    just "Port 1" should be enough to pick the right one.
+    """
+    if name in available:
+        return name
+    hits = [n for n in available if name.lower() in n.lower()]
+    if len(hits) == 1:
+        return hits[0]
+    listing = ", ".join(repr(n) for n in available) or "none"
+    if not hits:
+        raise MidiIOError(f"no {kind} port matching {name!r}; available: {listing}")
+    raise MidiIOError(f"{name!r} matches several {kind} ports: {hits}; be more specific")
+
+
 class MidoPort:
-    """Real hardware port. Use the 'ReMOTE SL Port 1' pair for template transfers."""
+    """Real MIDI port pair via mido/python-rtmidi. Use 'ReMOTE SL Port 1' for templates.
+
+    Tested end to end against virtual ports on macOS CI (tests/test_midi_virtual.py); the
+    behaviour of the SL itself is still untested.
+    """
 
     def __init__(self, name: str) -> None:
         try:
@@ -83,18 +104,20 @@ class MidoPort:
         except ImportError as e:  # pragma: no cover - depends on local install
             raise MidiIOError("mido is not installed") from e
         self._mido = mido
-        self.name = name
         try:
-            self._out = mido.open_output(name)
-            self._in = mido.open_input(name)
-        except (OSError, ValueError) as e:  # pragma: no cover - hardware only
+            out_name = resolve_port_name(name, mido.get_output_names(), "output")
+            in_name = resolve_port_name(name, mido.get_input_names(), "input")
+            self._out = mido.open_output(out_name)
+            self._in = mido.open_input(in_name)
+        except (OSError, ValueError, SystemError, RuntimeError) as e:
             raise MidiIOError(f"cannot open MIDI port {name!r}: {e}") from e
+        self.name = out_name
 
-    def send(self, message: bytes) -> None:  # pragma: no cover - hardware only
+    def send(self, message: bytes) -> None:
         _check_sysex(message)
         self._out.send(self._mido.Message("sysex", data=list(message[1:-1])))
 
-    def receive(self, timeout: float) -> bytes | None:  # pragma: no cover - hardware only
+    def receive(self, timeout: float) -> bytes | None:
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             msg = self._in.poll()
@@ -105,7 +128,7 @@ class MidoPort:
                 return bytes([SOX, *msg.data, EOX])
         return None
 
-    def close(self) -> None:  # pragma: no cover - hardware only
+    def close(self) -> None:
         self._in.close()
         self._out.close()
 

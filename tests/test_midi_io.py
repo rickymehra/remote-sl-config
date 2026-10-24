@@ -69,3 +69,18 @@ def test_receive_can_be_cancelled():
     cancel.set()
     port = midi_io.FakeMidiPort(inbox=[b"\xf0\x7d\xf7"])
     assert midi_io.receive_dump(port, count=1, timeout=5, cancel=cancel) == []
+
+
+def test_resolve_port_name():
+    names = ["ReMOTE SL:ReMOTE SL MIDI 1 20:0", "ReMOTE SL:ReMOTE SL MIDI 2 20:1", "IAC Bus 1"]
+    assert midi_io.resolve_port_name("IAC Bus 1", names) == "IAC Bus 1"
+    assert midi_io.resolve_port_name("midi 1", names) == names[0]
+    with pytest.raises(midi_io.MidiIOError, match="several"):
+        midi_io.resolve_port_name("ReMOTE", names)
+    with pytest.raises(midi_io.MidiIOError, match="available: 'ReMOTE"):
+        midi_io.resolve_port_name("Launchpad", names)
+
+
+def test_mido_port_reports_missing_device():
+    with pytest.raises(midi_io.MidiIOError):
+        midi_io.MidoPort("no such device 12345")
