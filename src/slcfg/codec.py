@@ -13,13 +13,13 @@ from dataclasses import dataclass
 from typing import Any
 
 from . import model as m
-from .sysex import EOX, NOVATION_ID, SOX, SysexError, split_messages, split_u14_be, u14_be
+from .sysex import EOX, SysexError, split_messages, split_u14_be, u14_be
 
 # ---- message geometry (confirmed against 89 community dumps + 1 bulk dump) ------------------
 MESSAGE_LEN = 4112
-PREFIX = bytes([SOX, *NOVATION_ID, 0x02, 0x03])  # F0 00 20 29 02 03
-RECORD_BASE = 419
-RECORD_LEN = 41
+PREFIX = m.TEMPLATE_PREFIX  # F0 00 20 29 02 03
+RECORD_BASE = m.HEADER_LEN
+RECORD_LEN = m.RECORD_LEN
 TRAILER_OFFSET = RECORD_BASE + m.NUM_RECORDS * RECORD_LEN  # 4109: "12 34 F7"
 TEMPLATE_NAME_OFFSET = 13
 SLOT_OFFSET = 12

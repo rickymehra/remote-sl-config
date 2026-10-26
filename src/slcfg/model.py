@@ -16,6 +16,10 @@ TEMPLATE_NAME_LEN = 48
 NUM_RECORDS = 90
 NUM_SLOTS = 40
 SYSEX_MAX = 12
+RECORD_LEN = 41
+HEADER_LEN = 419  # bytes before the first control record
+TRAILER_LEN = 3  # "12 34 F7"
+TEMPLATE_PREFIX = bytes([0xF0, 0x00, 0x20, 0x29, 0x02, 0x03])  # SysEx start, Novation, SL
 
 
 @dataclass(frozen=True)
@@ -116,6 +120,16 @@ class ValidationError(ValueError):
     pass
 
 
+def check_raw(label: str, raw: bytes, length: int) -> None:
+    """Hand-edited ``_raw`` hex must keep its length and stay 7-bit, or the encoded
+    message would not be valid SysEx."""
+    if len(raw) != length:
+        raise ValidationError(f"{label} must be {length} bytes, got {len(raw)}")
+    bad = next((i for i, b in enumerate(raw) if b & 0x80), None)
+    if bad is not None:
+        raise ValidationError(f"{label} byte {bad} is 0x{raw[bad]:02X}; only 00..7F allowed")
+
+
 def check_name(name: str, limit: int = NAME_LEN) -> None:
     if len(name) > limit:
         raise ValidationError(f"name {name!r} is longer than {limit} characters")
@@ -187,8 +201,8 @@ class Control:
         ):
             check_range(f"{self.slot}.{label}", v, 0, hi)
         self.sysex.validate(strict=self.type in SYSEX_TYPES)
-        if self.raw is not None and len(self.raw) != 41:
-            raise ValidationError(f"{self.slot}: _raw must be 41 bytes")
+        if self.raw is not None:
+            check_raw(f"{self.slot}._raw", self.raw, RECORD_LEN)
 
     def to_json(self) -> dict[str, Any]:
         d: dict[str, Any] = {
@@ -265,6 +279,18 @@ class Template:
         check_range("slot", self.slot, 1, NUM_SLOTS)
         check_range("group_size", self.group_size, 0, 127)
         check_range("group_position", self.group_position, 0, 127)
+        if self.header_raw is not None:
+            h = self.header_raw
+            if not h.startswith(TEMPLATE_PREFIX):
+                raise ValidationError(
+                    "_raw.header must start with F0 00 20 29 02 03 (a ReMOTE SL template)"
+                )
+            check_raw("_raw.header", h[1:], HEADER_LEN - 1)
+        if self.trailer_raw is not None:
+            tr = self.trailer_raw
+            if tr[-1:] != b"\xf7":
+                raise ValidationError("_raw.trailer must end with F7")
+            check_raw("_raw.trailer", tr[:-1], TRAILER_LEN - 1)
         for key, c in self.controls.items():
             if key != c.slot:
                 raise ValidationError(f"control key {key!r} != slot {c.slot!r}")
