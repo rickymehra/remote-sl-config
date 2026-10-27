@@ -96,10 +96,10 @@ class SysexAssembler:
     """Rebuilds complete SysEx messages from MIDI input chunks of any size.
 
     The OS MIDI layer does not promise one chunk per message: a large SysEx can arrive
-    split across chunks or joined with the next one. mido drops any chunk that is not
-    exactly one message; on macOS CI that lost about a quarter of a 40-template dump.
-    Here bytes are joined into a stream instead; realtime bytes are skipped, and a
-    message cut short by another status byte is discarded.
+    split across chunks (a USB device sends it a few bytes at a time) or joined with the
+    next one, and mido drops any chunk that is not exactly one message. Here bytes are
+    joined into a stream instead; realtime bytes are skipped, and a message cut short by
+    another status byte is discarded.
     """
 
     def __init__(self) -> None:
@@ -170,8 +170,11 @@ class MidoPort:
             return None
 
     def close(self) -> None:
-        # detach the callback first: closing an input while CoreMIDI delivers to it can block
+        # python-rtmidi holds the GIL in close_port(), and CoreMIDI waits there for any
+        # callback in flight, which itself waits for the GIL: a deadlock. So detach the
+        # callback, then release the GIL briefly to let an in-flight one finish.
         self._in.cancel_callback()
+        time.sleep(0.05)
         self._in.close_port()
         self._in.delete()
         self._out.close()

@@ -79,6 +79,18 @@ def test_receive_from_empty_fake(tmp_path):
     assert r.exit_code == 1 and "nothing received" in r.output
 
 
+def test_receive_short_dump_warns(tmp_path, monkeypatch):
+    from slcfg import midi_io
+    from slcfg.sysex import split_messages
+
+    msgs = [m.data for m in split_messages(BULK.read_bytes())][:3]
+    monkeypatch.setattr(midi_io, "open_port", lambda d: midi_io.FakeMidiPort(inbox=msgs))
+    out = tmp_path / "x.syx"
+    r = runner.invoke(app, ["receive", "-o", str(out), "--count", "5", "--timeout", "0.1"])
+    assert r.exit_code == 1 and "saved 3 message(s)" in r.output
+    assert "2 did not arrive" in r.output and out.read_bytes() == b"".join(msgs)
+
+
 def test_library_opens_tui_on_library(monkeypatch, tmp_path):
     from slcfg.tui.app import SLConfigApp
 

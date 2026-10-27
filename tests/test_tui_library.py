@@ -146,10 +146,10 @@ def test_receive_all_fills_table():
             assert cell(app, 40, 1).startswith("Ableton Live Automap")
             assert all(cell(app, s, 4) == "" for s in range(1, 41))
             assert app.library.to_bytes() == BULK.read_bytes()
-            assert "received 40" in status(app)
+            assert "received 40 template(s)" in status(app) and "of 40" not in status(app)
             await pilot.click("#lib-receive")  # inbox now empty except the junk message
             await wait_for(pilot, lambda: "skipped 1" in status(app))
-            assert "skipped 1" in status(app)
+            assert "received 0 template(s) of 40; receive again" in status(app)
             await pilot.click("#lib-receive")
             await wait_for(pilot, lambda: "nothing received" in status(app))
             assert "nothing received" in status(app)
