@@ -140,3 +140,71 @@ def test_partial_port_name_matches(sl):
         assert NAME in port.name
     finally:
         port.close()
+
+
+# TEMP experiment: where do templates go missing? -------------------------------------
+import subprocess  # noqa: E402
+import sys  # noqa: E402
+
+_SENDER = r"""
+import sys, time, mido
+from slcfg.sysex import split_messages
+name, path, gap = sys.argv[1], sys.argv[2], float(sys.argv[3])
+out = mido.open_output(name, virtual=True)
+inp = mido.open_input(name, virtual=True)
+print("ready", flush=True)
+sys.stdin.readline()
+for m in split_messages(open(path, "rb").read()):
+    out.send(mido.Message("sysex", data=list(m.payload)))
+    time.sleep(gap)
+print("sent", flush=True)
+sys.stdin.readline()
+"""
+RESULTS: list[str] = []
+
+
+@pytest.mark.parametrize(
+    "mode,gap",
+    [("thread", 0.02)] * 6 + [("thread", 0.1)] * 6 + [("process", 0.02)] * 6,
+)
+def test_experiment_dump_loss(mode, gap):
+    if os.environ.get("SLCFG_REQUIRE_VIRTUAL_MIDI") != "1":
+        pytest.skip("macOS CI only")
+    data = BULK.read_bytes()
+    if mode == "thread":
+        dev = VirtualSL()
+        time.sleep(0.2)
+        port = midi_io.MidoPort(NAME)
+        try:
+            threading.Timer(0.3, dev.dump, args=(data, gap)).start()
+            got = midi_io.receive_dump(port, timeout=20, count=40)
+        finally:
+            port.close()
+            dev.close()
+    else:
+        name = "slcfg proc SL"
+        p = subprocess.Popen(
+            [sys.executable, "-c", _SENDER, name, str(BULK), str(gap)],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            text=True,
+        )
+        assert p.stdout.readline().strip() == "ready"
+        time.sleep(0.3)
+        port = midi_io.MidoPort(name)
+        try:
+            p.stdin.write("go\n")
+            p.stdin.flush()
+            got = midi_io.receive_dump(port, timeout=20, count=40)
+        finally:
+            port.close()
+            p.stdin.write("quit\n")
+            p.stdin.flush()
+            p.wait(10)
+    RESULTS.append(f"{mode} gap={gap}: {len(got)}/40")
+
+
+def test_experiment_zz_report():
+    if os.environ.get("SLCFG_REQUIRE_VIRTUAL_MIDI") != "1":
+        pytest.skip("macOS CI only")
+    pytest.fail("\n".join(RESULTS))
