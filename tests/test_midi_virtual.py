@@ -86,15 +86,36 @@ def test_send_template_over_virtual_port(sl):
     assert sl.wait_received(1) == [data]  # 4112-byte SysEx arrives intact
 
 
-def test_receive_full_dump_over_virtual_port(sl):
+class RecordingAssembler(midi_io.SysexAssembler):
+    """Keeps every raw input chunk so a failure can say where bytes went missing."""
+
+    chunks: list[bytes] = []
+
+    def feed(self, chunk: bytes) -> list[bytes]:
+        RecordingAssembler.chunks.append(bytes(chunk))
+        return super().feed(chunk)
+
+
+def test_receive_full_dump_over_virtual_port(sl, monkeypatch):
     data = BULK.read_bytes()
+    RecordingAssembler.chunks = []
+    monkeypatch.setattr(midi_io, "SysexAssembler", RecordingAssembler)
     port = midi_io.MidoPort(NAME)
     try:
         threading.Timer(0.3, sl.dump, args=(data,)).start()
         got = midi_io.receive_dump(port, timeout=30, count=40)
     finally:
         port.close()
-    assert len(got) == 40, [len(m) for m in got]
+    raw = b"".join(RecordingAssembler.chunks)
+    sizes = sorted({len(c) for c in RecordingAssembler.chunks})
+    report = (
+        f"got {len(got)} messages; raw input {len(raw)} of {len(data)} bytes in "
+        f"{len(RecordingAssembler.chunks)} chunks (sizes {sizes[:5]}..{sizes[-5:]}), "
+        f"{raw.count(0xF0)} F0 and {raw.count(0xF7)} F7 bytes; "
+        f"lengths {[len(m) for m in got if len(m) != 4112]} not 4112"
+    )
+    print(report)
+    assert len(got) == 40, report
     assert b"".join(got) == data
 
 
