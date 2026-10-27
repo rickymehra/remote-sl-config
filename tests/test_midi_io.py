@@ -84,3 +84,21 @@ def test_resolve_port_name():
 def test_mido_port_reports_missing_device():
     with pytest.raises(midi_io.MidiIOError):
         midi_io.MidoPort("no such device 12345")
+
+
+def test_sysex_assembler_rebuilds_messages_from_any_chunking(vstation):
+    a, b = vstation, vstation[:-3] + b"\x00\x00\xf7"
+    stream = b"\x90\x40\x7f" + a + b"\xf8" + b  # note-on before, clock byte between
+    for size in (1, 7, 256, 4112, 5000, len(stream)):
+        asm = midi_io.SysexAssembler()
+        got = []
+        for i in range(0, len(stream), size):
+            got += asm.feed(stream[i : i + size])
+        assert got == [a, b], size
+
+
+def test_sysex_assembler_drops_interrupted_message():
+    asm = midi_io.SysexAssembler()
+    assert asm.feed(b"\xf0\x7d\x01\x90\x40\x7f\x02\xf7") == []  # cut off by a note-on
+    assert asm.feed(b"\xf0\x7d\x01\xf0\x7d\x02\xf7") == [b"\xf0\x7d\x02\xf7"]  # restarted
+    assert asm.feed(b"\xf8") == []
