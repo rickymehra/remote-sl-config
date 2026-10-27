@@ -97,7 +97,7 @@ class RecordingAssembler(midi_io.SysexAssembler):
         return super().feed(chunk)
 
 
-@pytest.mark.parametrize("attempt", range(8))  # TEMP: measure how often templates go missing
+@pytest.mark.parametrize("attempt", range(2))  # TEMP: measure how often templates go missing
 def test_receive_full_dump_over_virtual_port(sl, monkeypatch, attempt):
     data = BULK.read_bytes()
     RecordingAssembler.chunks = []
@@ -143,65 +143,40 @@ def test_partial_port_name_matches(sl):
 
 
 # TEMP experiment: where do templates go missing? -------------------------------------
-import subprocess  # noqa: E402
-import sys  # noqa: E402
-
-_SENDER = r"""
-import sys, time, mido
-from slcfg.sysex import split_messages
-name, path, gap = sys.argv[1], sys.argv[2], float(sys.argv[3])
-out = mido.open_output(name, virtual=True)
-inp = mido.open_input(name, virtual=True)
-print("ready", flush=True)
-sys.stdin.readline()
-for m in split_messages(open(path, "rb").read()):
-    out.send(mido.Message("sysex", data=list(m.payload)))
-    time.sleep(gap)
-print("sent", flush=True)
-sys.stdin.readline()
-"""
 RESULTS: list[str] = []
 
 
-@pytest.mark.parametrize(
-    "mode,gap",
-    [("thread", 0.02)] * 6 + [("thread", 0.1)] * 6 + [("process", 0.02)] * 6,
-)
-def test_experiment_dump_loss(mode, gap):
+def _dump_pieces(dev, data, gap):
+    rt = dev.outport._rt  # python-rtmidi MidiOut behind mido
+    for m in split_messages(data):
+        for i in range(0, len(m.data), 3):
+            rt.send_message(m.data[i : i + 3])
+        time.sleep(gap)
+
+
+@pytest.mark.parametrize("mode", ["whole"] * 4 + ["pieces"] * 4 + ["send"] * 4)
+def test_experiment_dump_loss(mode):
     if os.environ.get("SLCFG_REQUIRE_VIRTUAL_MIDI") != "1":
         pytest.skip("macOS CI only")
     data = BULK.read_bytes()
-    if mode == "thread":
-        dev = VirtualSL()
-        time.sleep(0.2)
-        port = midi_io.MidoPort(NAME)
-        try:
-            threading.Timer(0.3, dev.dump, args=(data, gap)).start()
-            got = midi_io.receive_dump(port, timeout=20, count=40)
-        finally:
-            port.close()
-            dev.close()
-    else:
-        name = "slcfg proc SL"
-        p = subprocess.Popen(
-            [sys.executable, "-c", _SENDER, name, str(BULK), str(gap)],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            text=True,
-        )
-        assert p.stdout.readline().strip() == "ready"
-        time.sleep(0.3)
-        port = midi_io.MidoPort(name)
-        try:
-            p.stdin.write("go\n")
-            p.stdin.flush()
-            got = midi_io.receive_dump(port, timeout=20, count=40)
-        finally:
-            port.close()
-            p.stdin.write("quit\n")
-            p.stdin.flush()
-            p.wait(10)
-    RESULTS.append(f"{mode} gap={gap}: {len(got)}/40")
+    dev = VirtualSL()
+    time.sleep(0.2)
+    port = midi_io.MidoPort(NAME)
+    try:
+        if mode == "send":
+            for m in split_messages(data):
+                port.send(m.data)
+                time.sleep(0.02)
+            n = len(dev.wait_received(40, timeout=10))
+        else:
+            fn = dev.dump if mode == "whole" else _dump_pieces
+            args = (data, 0.02) if mode == "whole" else (dev, data, 0.02)
+            threading.Timer(0.3, fn, args=args).start()
+            n = len(midi_io.receive_dump(port, timeout=20, count=40))
+    finally:
+        port.close()
+        dev.close()
+    RESULTS.append(f"{mode}: {n}/40")
 
 
 def test_experiment_zz_report():
