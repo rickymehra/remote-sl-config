@@ -57,8 +57,9 @@ class VirtualSL:
         return list(self.received)
 
     def close(self) -> None:
-        # detach the callback first: closing an input while CoreMIDI delivers to it can block
+        # detach the callback and let an in-flight one finish first (see MidoPort.close)
         self.inport.callback = None
+        time.sleep(0.05)
         self.inport.close()
         self.outport.close()
 

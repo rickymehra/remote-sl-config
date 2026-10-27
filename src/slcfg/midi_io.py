@@ -170,8 +170,11 @@ class MidoPort:
             return None
 
     def close(self) -> None:
-        # detach the callback first: closing an input while CoreMIDI delivers to it can block
+        # python-rtmidi holds the GIL in close_port(), and CoreMIDI waits there for any
+        # callback in flight, which itself waits for the GIL: a deadlock. So detach the
+        # callback, then release the GIL briefly to let an in-flight one finish.
         self._in.cancel_callback()
+        time.sleep(0.05)
         self._in.close_port()
         self._in.delete()
         self._out.close()
