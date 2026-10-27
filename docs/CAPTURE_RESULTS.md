@@ -72,6 +72,21 @@ non-Automap templates).
 - The owner's previous 40 templates are in `backup_all.syx`; restoring them is the same
   proven bulk send.
 
+**#1 channel and port codes: decoded by probe** (`slcfg.probe`, `probe_*.json` logs)
+- Method: records 0–55 set to CC n = record n, each with a different candidate code in the
+  byte under test, sent to the edit buffer; the owner moved every control while all three USB
+  inputs were logged. Three rounds (`probe_port`, `probe_chan_hdr`, `probe_port_hdr`), the
+  later ones with distinct template settings (keyboard port U2, common port U3, common
+  channel 5, keyboard channel 10).
+- +19 channel: bit 6 set = explicit, low nibble = channel − 1; bit 6 clear = follow the
+  template channel, bit 5 picks keyboard (header 99) over common (header 101).
+- +18 port: bit 6 set = explicit mask, bit 2/3/4 = U1/U2/U3, bits 0–1 = M1/M2 (not visible
+  over USB; order untested); bit 6 clear = follow the template port, bit 5 picks keyboard
+  (header 100) over common (header 102).
+- Header 99/100/101/102 = keyboard channel / keyboard port / common channel / common port,
+  confirmed (keys played with header 99 = `09`, 100 = `48` arrived on Port 2, ch 10).
+- Same session: Memory Protect OFF, single-template sends land in the edit buffer.
+
 ## Where the docs and the device disagreed
 
 - **OS 4.2.02** instead of 4.1. Nothing in the format differed so far.

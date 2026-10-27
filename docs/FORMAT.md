@@ -62,9 +62,10 @@ exposes only the named fields.
 | 82–96 | `19 00 01 00 21 00 09 00 39 00 11 00 29 00 31` | constant, meaning unknown | all files |
 | 97 | 0–4, mostly 3 | guess: velocity curve index | Template menu page 1 lists VelCurve first |
 | 98 | 5–7, mostly 5 | guess: aftertouch / octave? | |
-| 100 | port code (`47`, `07`, `43`, `4B`) | guess: keyboard port | same code family as record byte +18 |
-| 101 | 0, 1, 9, 15 | guess: a MIDI channel (0-based) | MicroTonic (drums) = 9 → channel 10; Live/Traktor = 15 |
-| 102 | port code (`47`, `44`, `43`) | guess: common port | |
+| 99 | 0–15 | **keyboard channel** (0-based) | confirmed: set to `09`, keys sent on ch 10 (hardware session 1) |
+| 100 | port code (`47`, `07`, `43`, `4B`) | **keyboard port** (port code as record +18) | confirmed: set to `48`, keys and KeybPORT controls sent on U2 (hardware session 1) |
+| 101 | 0, 1, 9, 15 | **common channel** (0-based) | confirmed: set to `04`, ComnCHAN controls sent on ch 5 (hardware session 1) |
+| 102 | port code (`47`, `44`, `43`) | **common port** | confirmed: set to `50`, ComnPORT controls sent on U3 (hardware session 1) |
 | 105–108 | small values | guess: PotMode, rows selected on save, octave | manual §17: a save also stores PotMode, selected rows and octave |
 | 112–151 | 4 × 10-byte blocks | likely: **keyboard zones 1–4** | in each block: +2 = 0 (low note), +3 = 127 (high note), +4 = 64 (transpose 0 on a −64..+63 scale); manual §16 has 4 zones |
 | 151–186 | mostly zero; 155–170 hold 8 pairs in 4 templates | unknown | |
@@ -124,8 +125,8 @@ geometry, and `tests/test_tui.py::test_panel_geometry_matches_hardware` checks i
 | 15 | 1 | **DispType** | likely for 0/1, guess for the rest | 1 on bipolar parameters (Pan, Semi, Fine, FLfoAmt); 3 on ON/OFF buttons with Low=127/High=0; 6/7 on encoders sending 63/65 increments (REL modes); 2 on all MMC transport; 8/9/16–20 in Automap templates |
 | 16 | 1 | **NRPN/RPN MSB** | likely | FL Studio NRPN `01 1E`; General MIDI RPN coarse/fine tune = MSB 0 |
 | 17 | 1 | **CC number / NRPN LSB / RPN LSB** | confirmed | expression 11, sustain 64, mod 1; GM template RPN `Crs Tune` = 2, `FineTune` = 1 (RPN 0/2, 0/1); V-Station NRPN LSBs 0x68–0x6A |
-| 18 | 1 | **port routing code** | guess | values `47`, `0F`, `07`, `45`, `41`, `4F`, `04`, `00`, `20`. Hypothesis H-port: bits 0–1 = USB port (0 none, 1 U1, 2 U2, 3 U3), bit 2 = M1, bit 3 = M2, bit 6 = follow ComnPORT, bit 5 = follow KeybPORT. Codec exposes the raw code |
-| 19 | 1 | **MIDI channel code** | guess | `40` most common, `00`, `41`, `42`, `4F`, `30`, `20`. Hypothesis H-chan: low nibble = channel − 1, bit 6 = ComnCHAN, bit 5 = KeybCHAN. Codec exposes the raw code |
+| 18 | 1 | **port routing code** | confirmed (USB), likely (M1/M2) | Bit 6 set = explicit mask: bit 2 = U1, bit 3 = U2, bit 4 = U3, bits 0–1 = M1/M2 (send nothing over USB; which is which is untested), bit 5 ignored. Bit 6 clear = follow a template port: bit 5 set → KeybPORT (header 100), clear → ComnPORT (header 102), other bits ignored. So `44` = U1, `47` = U1 + M1 + M2, `00` = ComnPORT, `20` = KeybPORT. Probed on hardware with all 54 codes (session 1) |
+| 19 | 1 | **MIDI channel code** | confirmed | Bit 6 set = explicit channel, low nibble = channel − 1 (`40` = ch 1 … `4F` = ch 16), bits 4–5 ignored. Bit 6 clear = follow a template channel: bit 5 set → KeybCHAN (header 99), clear → ComnCHAN (header 101). Probed on hardware (session 1). The old H-chan guess had bit 6 backwards |
 | 20–21 | 2 | **stored control value** (two 7-bit bytes, order as LowVal) | likely | manual §17: a save stores each control's current value. V-Station: 64 on bipolar knobs, NRPN `Osc1octv` 0x12 lies within its 0x10–0x13 range |
 | 22 | 1 | **StepVal** | likely | non-zero (2, 5, 9, 14, 31, 32, 63) almost only on buttons with button type STEP |
 | 23 | 1 | zero in all dumps | — | |

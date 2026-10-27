@@ -27,11 +27,12 @@ templates. A hardware session will confirm the rest.
 | Control order: encoders, pots, sliders, 4 button rows, pads, pedals, joystick, touchpad, transport | confirmed / likely (FORMAT §3.1) |
 | Per-control name, type, CC/NRPN number, SysEx string | **confirmed** / likely |
 | Low/high value, button type, step, display type, stored value | likely |
-| Channel and port encoding, response / touchpad / drum Auto-Off fields, template-menu bytes, keyboard zones, records 78–89 | **guess**: kept as raw codes |
-| Checksum | likely none |
+| Channel and port routing codes (+18, +19; header 99–102) | **confirmed** on hardware (send-and-observe probe, `python -m slcfg.probe`) |
+| Response / touchpad / drum Auto-Off fields, template-menu bytes, keyboard zones, records 78–89 | **guess**: kept as raw codes |
+| Checksum | **none** (header 9–10 = OS version of the dumping unit; SL accepts other values) |
 | Codec | lossless: `encode(decode(x)) == x` for all 90 community files (129 templates) |
 | CLI, TUI, fake MIDI port | done, tested without hardware |
-| Real-device send/receive | written (`--device`), **untested on hardware: use at your own risk** |
+| Real-device send/receive | **tested on one SL (OS 4.2.02)**: dumps, single send to edit buffer, 40-template bulk load |
 
 Details and evidence: [`docs/FORMAT.md`](docs/FORMAT.md). What to capture at home:
 [`docs/CAPTURE_PLAN.md`](docs/CAPTURE_PLAN.md). Judgement calls: [`docs/DECISIONS.md`](docs/DECISIONS.md).
