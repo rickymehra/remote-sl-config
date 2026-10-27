@@ -247,7 +247,8 @@ class LibraryScreen(Screen[None]):
             got += 1
         self.refresh_table()
         skipped = f", skipped {bad} non-template message(s)" if bad else ""
-        self.set_status(f"received {got} template(s){skipped}")
+        short = "" if got >= NUM_SLOTS else f" of {NUM_SLOTS}; receive again to fill the rest"
+        self.set_status(f"received {got} template(s){short}{skipped}")
 
     @on(Button.Pressed, "#lib-send-slot")
     def send_slot(self) -> None:
