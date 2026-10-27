@@ -97,7 +97,8 @@ class RecordingAssembler(midi_io.SysexAssembler):
         return super().feed(chunk)
 
 
-def test_receive_full_dump_over_virtual_port(sl, monkeypatch):
+@pytest.mark.parametrize("attempt", range(8))  # TEMP: measure how often templates go missing
+def test_receive_full_dump_over_virtual_port(sl, monkeypatch, attempt):
     data = BULK.read_bytes()
     RecordingAssembler.chunks = []
     monkeypatch.setattr(midi_io, "SysexAssembler", RecordingAssembler)
