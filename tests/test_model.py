@@ -89,3 +89,31 @@ def test_template_validation_and_json():
     t.controls["pot_3"].slot = "pot_4"
     with pytest.raises(ValidationError):
         t.validate()
+
+
+@pytest.mark.parametrize(
+    "edit",
+    [
+        lambda h, r, t: (h[:20] + b"\xf7" + h[21:], r, t),  # 8-bit byte in the header
+        lambda h, r, t: (b"\xf0\x41" + h[2:], r, t),  # not a Novation SL header
+        lambda h, r, t: (h[:-1], r, t),  # header one byte short
+        lambda h, r, t: (h, r[:30] + b"\xf0" + r[31:], t),  # 8-bit byte in a record
+        lambda h, r, t: (h, r + b"\x00", t),  # record one byte long
+        lambda h, r, t: (h, r, b"\x92\x34\xf7"),  # 8-bit byte in the trailer
+        lambda h, r, t: (h, r, b"\x12\x34\x00"),  # trailer without F7
+        lambda h, r, t: (h, r, b"\x12\x34\xf7\x00"),  # trailer too long
+    ],
+)
+def test_hand_edited_raw_bytes_are_rejected(vstation, edit):
+    """`_raw` hex edited by hand must not encode into an invalid SysEx file."""
+    from slcfg import codec
+
+    d = codec.decode(vstation).to_json()
+    h = bytes.fromhex(d["_raw"]["header"])
+    r = bytes.fromhex(d["controls"]["encoder_1"]["_raw"])
+    t = bytes.fromhex(d["_raw"]["trailer"])
+    h, r, t = edit(h, r, t)
+    d["_raw"] = {"header": h.hex(" "), "trailer": t.hex(" ")}
+    d["controls"]["encoder_1"]["_raw"] = r.hex(" ")
+    with pytest.raises(ValidationError):
+        Template.from_json(d)
