@@ -41,7 +41,7 @@ Open questions are GitHub issues #1–#10; the hardware session is #11.
 
 ```sh
 uv sync            # Python 3.12+; on Linux first: sudo apt install libasound2-dev
-uv run pytest      # 307 tests, no hardware needed
+uv run pytest      # 309 tests, no hardware needed
 ```
 
 ## Use

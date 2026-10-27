@@ -225,6 +225,9 @@ def receive(
         raise typer.Exit(1)
     out.write_bytes(b"".join(msgs))
     typer.echo(f"saved {len(msgs)} message(s) to {out}")
+    if len(msgs) < count:
+        typer.echo(f"warning: expected {count}, {count - len(msgs)} did not arrive; dump again")
+        raise typer.Exit(1)
 
 
 def progress_printer(verb: str, width: int = 30):

@@ -43,6 +43,9 @@ testpaths = ["tests"]
 # a hung test (e.g. a MIDI port that never closes) fails with every thread's stack dumped
 timeout = 120
 timeout_method = "thread"
+# the thread method needs the GIL; faulthandler's C watchdog still dumps stacks when a C
+# call (e.g. a MIDI port close) holds it
+faulthandler_timeout = 100
 markers = ["animated: run Textual apps with animations on"]
 
 [tool.ruff.lint.isort]
