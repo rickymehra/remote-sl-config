@@ -1,7 +1,8 @@
 # Capture results: hardware session 1 (2026-10-27)
 
-First run against a real ReMOTE SL (issue #11). Read-only: nothing was sent to the SL and
-Memory Protect stayed ON. Captured C0, C1, C1b; stopped at C2 (see "Next session").
+First run against a real ReMOTE SL (issue #11). Captured C0, C1, C1b; stopped at C2 (see
+"Next session"). Later in the session, with the owner's OK, tested the write path (C12) and
+loaded the factory OS 4.1 set into all 40 slots (Memory Protect OFF).
 
 Setup: ReMOTE SL over USB on macOS, ports `ReMOTE SL Port 1/2/3` (in and out) as documented.
 **SL OS 4.2.02**, not the 4.1 the plan assumes.
@@ -14,6 +15,9 @@ Setup: ReMOTE SL over USB on macOS, ports `ReMOTE SL Port 1/2/3` (in and out) as
 | `C0_all.syx` | Wizard C0, a second Dump All. Byte-identical to `backup_all.syx`. |
 | `C1.syx` | Template 35 (User1), dumped as **Current** (edit buffer), untouched. |
 | `C1b.syx` | Template 35 dumped **by number**. |
+| `C12_sent.syx`, `C12.syx` | C1 with encoder 1 renamed `C12 OK` (CC 74), sent; then dumped as Current. |
+| `C12_readback.syx` | Current dump after sending unchanged `C1.syx` (inconclusive, see C12). |
+| `after_factory_all.syx` | Dump All after sending the factory OS 4.1 bulk file. |
 | `probe_13b.syx` | Two unsolicited 13-byte messages sent on template change (below). |
 | `FINDINGS.md`, `session.json`, `*.md` | Wizard output; `slcfg capture` resumes at C2. |
 
@@ -46,6 +50,27 @@ select 35:  F0 00 20 29 03 03 10 05 05 00 01 00 F7
 Product byte `03` (templates use `02`). Only the last data byte differs. 34 is an Automap
 template and 35 is not, so it may be an Automap on/off flag (guess; untested between two
 non-Automap templates).
+
+**C12 write path: works**
+- Sending a single template (byte 7 = `00`) lands in the **edit buffer**: the SL showed
+  `C12 OK` on encoder 1, and the Current dump matched what was sent apart from 3 bytes caused
+  by touching controls: r00 +14 `10`→`00` and r00 +21 `2C`→`71` (encoder 1 turned: +21 is
+  its live value, and touching it cleared bit `0x10` of +14, perhaps a "not moved since load"
+  flag, #3), and r01 +15 `00`→`04` (encoder 2 DispType; unexplained, maybe a knob nudged in
+  edit mode).
+- Sending unchanged `C1.syx` and reading it back proved nothing on its own: the edit buffer
+  already held those bytes. A test send needs a visible change.
+
+**Bulk load: works, no checksum** (#8)
+- The factory bulk file (40 messages, byte 7 = `01`), sent with a 0.5 s gap and Memory
+  Protect OFF, was **stored straight into slots 1–40**, without pressing WRITE.
+- Dump All afterwards matches the factory file byte for byte except **bytes 9–10**: file
+  `21 07`, device `22 02`. Every dump from this OS 4.2.02 unit carries `22 02`, and factory
+  files carry `21 07` / `21 09`, so **bytes 9–10 are the OS version of the unit that made the
+  dump** and the SL rewrites them on dump. The SL accepted a template with a different value
+  there, which also rules them out as a checksum.
+- The owner's previous 40 templates are in `backup_all.syx`; restoring them is the same
+  proven bulk send.
 
 ## Where the docs and the device disagreed
 
