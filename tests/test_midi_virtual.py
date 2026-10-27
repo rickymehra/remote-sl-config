@@ -36,11 +36,17 @@ class VirtualSL:
         # our "MIDI out" (what slcfg opens as output) is this virtual input, and vice versa
         self.inport = mido.open_input(NAME, virtual=True, callback=self._on_message)
         self.outport = mido.open_output(NAME, virtual=True)
+        self._dumper: threading.Timer | None = None
 
     def _on_message(self, msg) -> None:
         if msg.type == "sysex":
             with self._lock:
                 self.received.append(bytes([0xF0, *msg.data, 0xF7]))
+
+    def dump_later(self, delay: float, data: bytes) -> None:
+        """Dump from a background thread after ``delay`` seconds; close() waits for it."""
+        self._dumper = threading.Timer(delay, self.dump, args=(data,))
+        self._dumper.start()
 
     def dump(self, data: bytes, gap: float = 0.02) -> None:
         for m in split_messages(data):
@@ -57,6 +63,9 @@ class VirtualSL:
         return list(self.received)
 
     def close(self) -> None:
+        # a dump still sending into a closed port crashes python-rtmidi
+        if self._dumper is not None:
+            self._dumper.join()
         # detach the callback and let an in-flight one finish first (see MidoPort.close)
         self.inport.callback = None
         time.sleep(0.05)
@@ -96,7 +105,7 @@ def test_receive_full_dump_over_virtual_port(sl):
     expected = [m.data for m in split_messages(data)]
     port = midi_io.MidoPort(NAME)
     try:
-        threading.Timer(0.3, sl.dump, args=(data,)).start()
+        sl.dump_later(0.3, data)
         got = midi_io.receive_dump(port, timeout=20, count=40)
     finally:
         port.close()
@@ -124,7 +133,7 @@ def test_cli_send_and_receive_with_device(sl, tmp_path):
 
     out = tmp_path / "dump.syx"
     # three copies: CoreMIDI may drop one from a virtual source (see the dump test above)
-    threading.Timer(0.5, sl.dump, args=(V_STATION_1.read_bytes() * 3,)).start()
+    sl.dump_later(0.5, V_STATION_1.read_bytes() * 3)
     r = runner.invoke(app, ["receive", "--device", NAME, "-o", str(out), "--timeout", "15"])
     assert r.exit_code == 0, r.output
     assert out.read_bytes() == V_STATION_1.read_bytes()
