@@ -94,7 +94,7 @@ def test_receive_full_dump_over_virtual_port(sl):
         got = midi_io.receive_dump(port, timeout=30, count=40)
     finally:
         port.close()
-    assert len(got) == 40
+    assert len(got) == 40, [len(m) for m in got]
     assert b"".join(got) == data
 
 

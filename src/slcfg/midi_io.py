@@ -10,6 +10,7 @@ confirmation callback approves the exact bytes.
 
 from __future__ import annotations
 
+import queue
 import threading
 import time
 from collections import deque
@@ -91,8 +92,42 @@ def resolve_port_name(name: str, available: list[str], kind: str = "MIDI") -> st
     raise MidiIOError(f"{name!r} matches several {kind} ports: {hits}; be more specific")
 
 
+class SysexAssembler:
+    """Rebuilds complete SysEx messages from MIDI input chunks of any size.
+
+    The OS MIDI layer does not promise one chunk per message: a large SysEx can arrive
+    split across chunks or joined with the next one. mido drops any chunk that is not
+    exactly one message; on macOS CI that lost about a quarter of a 40-template dump.
+    Here bytes are joined into a stream instead; realtime bytes are skipped, and a
+    message cut short by another status byte is discarded.
+    """
+
+    def __init__(self) -> None:
+        self._buf: bytearray | None = None
+
+    def feed(self, chunk: bytes) -> list[bytes]:
+        done: list[bytes] = []
+        for b in chunk:
+            if b >= 0xF8:  # realtime (clock, active sensing) may appear anywhere
+                continue
+            if b == SOX:
+                self._buf = bytearray([SOX])
+            elif self._buf is None:
+                continue  # outside SysEx: channel messages are not ours
+            elif b == EOX:
+                self._buf.append(EOX)
+                done.append(bytes(self._buf))
+                self._buf = None
+            elif b & 0x80:
+                self._buf = None  # interrupted by another message
+            else:
+                self._buf.append(b)
+        return done
+
+
 class MidoPort:
-    """Real MIDI port pair via mido/python-rtmidi. Use 'ReMOTE SL Port 1' for templates.
+    """Real MIDI port pair: mido for output, python-rtmidi directly for input (see
+    :class:`SysexAssembler` for why). Use 'ReMOTE SL Port 1' for templates.
 
     Tested end to end against virtual ports on macOS CI (tests/test_midi_virtual.py); the
     behaviour of the SL itself is still untested.
@@ -101,35 +136,44 @@ class MidoPort:
     def __init__(self, name: str) -> None:
         try:
             import mido
+            import rtmidi
         except ImportError as e:  # pragma: no cover - depends on local install
-            raise MidiIOError("mido is not installed") from e
+            raise MidiIOError("mido/python-rtmidi is not installed") from e
         self._mido = mido
+        self._assembler = SysexAssembler()
+        self._inbox: queue.Queue[bytes] = queue.Queue()
         try:
             out_name = resolve_port_name(name, mido.get_output_names(), "output")
-            in_name = resolve_port_name(name, mido.get_input_names(), "input")
+            self._in = rtmidi.MidiIn()
+            in_names = self._in.get_ports()
+            in_name = resolve_port_name(name, in_names, "input")
             self._out = mido.open_output(out_name)
-            self._in = mido.open_input(in_name)
-        except (OSError, ValueError, SystemError, RuntimeError) as e:
+            self._in.ignore_types(sysex=False, timing=True, active_sense=True)
+            self._in.set_callback(self._on_chunk)
+            self._in.open_port(in_names.index(in_name))
+        except (OSError, ValueError, SystemError) as e:
             raise MidiIOError(f"cannot open MIDI port {name!r}: {e}") from e
         self.name = out_name
+
+    def _on_chunk(self, event, _data=None) -> None:
+        for msg in self._assembler.feed(bytes(event[0])):
+            self._inbox.put(msg)
 
     def send(self, message: bytes) -> None:
         _check_sysex(message)
         self._out.send(self._mido.Message("sysex", data=list(message[1:-1])))
 
     def receive(self, timeout: float) -> bytes | None:
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
-            msg = self._in.poll()
-            if msg is None:
-                time.sleep(0.005)
-                continue
-            if msg.type == "sysex":
-                return bytes([SOX, *msg.data, EOX])
-        return None
+        try:
+            return self._inbox.get(timeout=max(timeout, 0))
+        except queue.Empty:
+            return None
 
     def close(self) -> None:
-        self._in.close()
+        # detach the callback first: closing an input while CoreMIDI delivers to it can block
+        self._in.cancel_callback()
+        self._in.close_port()
+        self._in.delete()
         self._out.close()
 
 
