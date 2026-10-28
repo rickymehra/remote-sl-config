@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from conftest import BULK, COMMUNITY
+from conftest import BULK, COMMUNITY, ROOT
 from slcfg import codec
 from slcfg.model import SLOTS, Control, Template, ValidationError
 
@@ -150,3 +150,34 @@ def test_offset_table_is_consistent():
         assert {f.confidence for f in fields} <= {"confirmed", "likely", "guess"}
     assert len(SLOTS) == 90
     assert Control(slot="encoder_1").to_json()["type"] == "none"
+
+
+PROBE_HDR = ROOT / "dumps/captures/probe_port_hdr.syx"
+
+
+def test_template_routing_from_hardware_probe():
+    # hardware session 1: keys on ch 10 / U2, ComnCHAN controls on ch 5, ComnPORT on U3
+    t = codec.decode(PROBE_HDR.read_bytes())
+    assert (t.keyboard_channel, t.keyboard_port) == (9, 0x48)
+    assert (t.common_channel, t.common_port) == (4, 0x50)
+
+
+def test_routing_edit_changes_only_header_bytes(vstation):
+    t = codec.decode(vstation)
+    t.keyboard_channel, t.common_port = 9, 0x48
+    out = codec.encode(t)
+    changed = [i for i, (a, b) in enumerate(zip(vstation, out, strict=True)) if a != b]
+    assert changed == [99, 102]
+    back = codec.decode(out)
+    assert (back.keyboard_channel, back.common_port) == (9, 0x48)
+
+
+def test_routing_json_roundtrip_and_old_files(vstation):
+    t = codec.decode(vstation)
+    t.common_channel = 15
+    doc = t.to_json()
+    assert doc["routing"]["common"]["channel"] == 15
+    assert codec.encode(Template.from_json(json.loads(json.dumps(doc)))) == codec.encode(t)
+    # JSON written before routing was decoded: the raw header decides, nothing changes
+    del doc["routing"]
+    assert Template.from_json(doc).common_channel == vstation[101]

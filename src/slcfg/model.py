@@ -110,6 +110,60 @@ BUTTON_MODE_CODES = {v: k for k, v in BUTTON_MODES.items()}
 # Display type (record offset 15). Only 0 and 1 are well supported by evidence.
 DISPLAY_TYPES: dict[int, str] = {0: "0-127", 1: "-64/+63"}
 
+# Channel and port routing codes, confirmed on hardware (FORMAT.md R18/R19, header 99-102).
+# Record +19 channel: bit 6 set = explicit, low nibble = channel - 1; clear = follow the
+# template's keyboard (bit 5) or common channel. Record +18 port: bit 6 set = explicit mask
+# (U1/U2/U3 = bits 2/3/4, M1/M2 = bits 0/1, order untested); clear = follow keyboard (bit 5)
+# or common port. The template header holds a plain 0-based channel and an explicit port mask.
+ROUTE_EXPLICIT = 0x40
+ROUTE_KEYBOARD = 0x20
+PORT_BITS: list[tuple[int, str]] = [
+    (0x04, "U1"),
+    (0x08, "U2"),
+    (0x10, "U3"),
+    (0x01, "M1"),
+    (0x02, "M2"),
+]
+PORT_MASK = 0x1F
+KEYBOARD_CHANNEL_OFFSET = 99
+KEYBOARD_PORT_OFFSET = 100
+COMMON_CHANNEL_OFFSET = 101
+COMMON_PORT_OFFSET = 102
+# Values in an empty template (codec.DEFAULT_HEADER): channel 1, port U1
+DEFAULT_TEMPLATE_CHANNEL = 0
+DEFAULT_TEMPLATE_PORT = 0x44
+
+
+def port_mask_name(code: int) -> str:
+    names = [n for bit, n in PORT_BITS if code & bit]
+    return "+".join(names) if names else "none"
+
+
+def describe_channel(code: int) -> str:
+    """Meaning of a control's channel code (record +19)."""
+    if code & ROUTE_EXPLICIT:
+        return f"ch {(code & 0x0F) + 1}"
+    return "KeybCHAN" if code & ROUTE_KEYBOARD else "ComnCHAN"
+
+
+def describe_port(code: int) -> str:
+    """Meaning of a control's port code (record +18)."""
+    if code & ROUTE_EXPLICIT:
+        return port_mask_name(code)
+    return "KeybPORT" if code & ROUTE_KEYBOARD else "ComnPORT"
+
+
+def describe_template_channel(code: int) -> str:
+    return f"ch {code + 1}" if code < 16 else f"code {code:02X} (unconfirmed)"
+
+
+def describe_template_port(code: int) -> str:
+    """Header port bytes: only explicit masks (bit 6 set) are confirmed."""
+    if code & ROUTE_EXPLICIT:
+        return port_mask_name(code)
+    return f"code {code:02X} (unconfirmed)"
+
+
 # Control types whose record uses the SysEx block (+26..+40).
 SYSEX_TYPES = {"sysex", "template"}
 
@@ -259,12 +313,20 @@ class Control:
         return c
 
 
+ROUTING_ATTRS = ("keyboard_channel", "keyboard_port", "common_channel", "common_port")
+
+
 @dataclass
 class Template:
     name: str = ""
     slot: int = 1  # 1-based memory location as shown on the device (1..40)
     group_size: int = 0
     group_position: int = 0
+    # Template-wide routing (header 99-102), raw codes: channel 0-based, port as a mask code
+    keyboard_channel: int = DEFAULT_TEMPLATE_CHANNEL
+    keyboard_port: int = DEFAULT_TEMPLATE_PORT
+    common_channel: int = DEFAULT_TEMPLATE_CHANNEL
+    common_port: int = DEFAULT_TEMPLATE_PORT
     controls: dict[str, Control] = field(default_factory=dict)
     header_raw: bytes | None = None  # bytes 0..418 of the original message
     trailer_raw: bytes | None = None  # bytes after the last record, F7 included
@@ -279,6 +341,8 @@ class Template:
         check_range("slot", self.slot, 1, NUM_SLOTS)
         check_range("group_size", self.group_size, 0, 127)
         check_range("group_position", self.group_position, 0, 127)
+        for label in ROUTING_ATTRS:
+            check_range(label, getattr(self, label), 0, 127)
         if self.header_raw is not None:
             h = self.header_raw
             if not h.startswith(TEMPLATE_PREFIX):
@@ -302,6 +366,10 @@ class Template:
             "name": self.name,
             "slot": self.slot,
             "group": {"size": self.group_size, "position": self.group_position},
+            "routing": {
+                "keyboard": {"channel": self.keyboard_channel, "port": self.keyboard_port},
+                "common": {"channel": self.common_channel, "port": self.common_port},
+            },
             "controls": {
                 s.key: self.controls[s.key].to_json() for s in SLOTS if s.key in self.controls
             },
@@ -322,13 +390,32 @@ class Template:
             raise ValidationError(f"unsupported format {fmt!r}")
         raw = d.get("_raw") or {}
         group = d.get("group") or {}
+        header_raw = bytes.fromhex(raw["header"]) if "header" in raw else None
+        routing = d.get("routing") or {}
+
+        def route(section: str, key: str, offset: int, default: int) -> int:
+            # files written before routing was decoded: keep what the raw header holds
+            if key in (routing.get(section) or {}):
+                return routing[section][key]
+            if header_raw is not None and len(header_raw) > offset:
+                return header_raw[offset]
+            return default
+
         t = cls(
             name=d.get("name", ""),
             slot=d.get("slot", 1),
             group_size=group.get("size", 0),
             group_position=group.get("position", 0),
+            keyboard_channel=route(
+                "keyboard", "channel", KEYBOARD_CHANNEL_OFFSET, DEFAULT_TEMPLATE_CHANNEL
+            ),
+            keyboard_port=route("keyboard", "port", KEYBOARD_PORT_OFFSET, DEFAULT_TEMPLATE_PORT),
+            common_channel=route(
+                "common", "channel", COMMON_CHANNEL_OFFSET, DEFAULT_TEMPLATE_CHANNEL
+            ),
+            common_port=route("common", "port", COMMON_PORT_OFFSET, DEFAULT_TEMPLATE_PORT),
             controls={k: Control.from_json(k, v) for k, v in (d.get("controls") or {}).items()},
-            header_raw=bytes.fromhex(raw["header"]) if "header" in raw else None,
+            header_raw=header_raw,
             trailer_raw=bytes.fromhex(raw["trailer"]) if "trailer" in raw else None,
         )
         t.validate()

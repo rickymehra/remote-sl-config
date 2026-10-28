@@ -3,7 +3,7 @@
 import asyncio
 
 import pytest
-from textual.widgets import Input, Label, Static
+from textual.widgets import Input, Label, Select, Static
 
 from conftest import V_STATION_1, wait_for
 from slcfg import codec, midi_io
@@ -239,5 +239,38 @@ def test_receive_runs_in_background_and_can_be_cancelled():
             assert "cancelled" in str(app.query_one("#status", Static).render())
             assert str(app.query_one("#receive").label) == "Receive"
             assert app.template.name.startswith("V-Station-1")  # untouched
+
+    run(go())
+
+
+def test_edit_template_routing():
+    async def go():
+        app = SLConfigApp(path=V_STATION_1)
+        async with app.run_test(size=(200, 60)) as pilot:
+            assert app.query_one("#t-common_channel", Select).value == app.template.common_channel
+            app.query_one("#t-keyboard_channel", Select).value = 9
+            app.query_one("#t-common_port", Select).value = 0x48
+            await pilot.click("#apply")
+            await pilot.pause()
+            assert (app.template.keyboard_channel, app.template.common_port) == (9, 0x48)
+            diff = str(app.query_one("#diff", Static).render())
+            assert "99" in diff and "102" in diff
+            hexview = str(app.query_one("#hex", Static).render())
+            assert "routing:" in hexview
+
+    run(go())
+
+
+def test_unknown_routing_code_is_kept():
+    async def go():
+        t = codec.decode(V_STATION_1.read_bytes())
+        t.keyboard_port = 0x07  # bit 6 clear: meaning unconfirmed, must survive load + apply
+        app = SLConfigApp(path=V_STATION_1)
+        async with app.run_test(size=(200, 60)) as pilot:
+            app.template = t
+            app.refresh_all()
+            await pilot.click("#apply")
+            await pilot.pause()
+            assert app.template.keyboard_port == 0x07
 
     run(go())

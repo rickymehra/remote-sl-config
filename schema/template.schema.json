@@ -39,6 +39,49 @@
         }
       }
     },
+    "routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Template-wide channel and port that controls can follow (confirmed on hardware)",
+      "properties": {
+        "keyboard": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "channel": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 127,
+              "description": "KeybCHAN MIDI channel, 0-based (0 = ch 1 ... 15 = ch 16); header byte 99"
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 127,
+              "description": "KeybPORT port code, header byte 100: bit 6 set = explicit mask, U1/U2/U3 = 4/8/16, M1/M2 = 1/2 (order untested)"
+            }
+          }
+        },
+        "common": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "channel": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 127,
+              "description": "ComnCHAN MIDI channel, 0-based (0 = ch 1 ... 15 = ch 16); header byte 101"
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 127,
+              "description": "ComnPORT port code, header byte 102: bit 6 set = explicit mask, U1/U2/U3 = 4/8/16, M1/M2 = 1/2 (order untested)"
+            }
+          }
+        }
+      }
+    },
     "controls": {
       "type": "object",
       "additionalProperties": false,
@@ -483,13 +526,13 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 127,
-          "description": "Raw channel code (encoding unconfirmed, docs/FORMAT.md +19)"
+          "description": "Channel code (docs/FORMAT.md +19): bit 6 set = explicit, low nibble = channel - 1; bit 6 clear = follow KeybCHAN (bit 5) or ComnCHAN"
         },
         "port": {
           "type": "integer",
           "minimum": 0,
           "maximum": 127,
-          "description": "Raw port routing code (encoding unconfirmed, docs/FORMAT.md +18)"
+          "description": "Port code (docs/FORMAT.md +18): bit 6 set = explicit mask U1/U2/U3 = 4/8/16, M1/M2 = 1/2; bit 6 clear = follow KeybPORT (bit 5) or ComnPORT"
         },
         "value": {
           "type": "integer",

@@ -40,6 +40,9 @@ DEFAULT_RECORD = bytes.fromhex(
 )
 DEFAULT_TRAILER = bytes([0x12, 0x34, EOX])
 assert len(DEFAULT_HEADER) == RECORD_BASE and len(DEFAULT_RECORD) == RECORD_LEN
+assert DEFAULT_HEADER[m.KEYBOARD_CHANNEL_OFFSET : m.COMMON_PORT_OFFSET + 1] == bytes(
+    [m.DEFAULT_TEMPLATE_CHANNEL, m.DEFAULT_TEMPLATE_PORT] * 2
+)
 
 
 class CodecError(ValueError):
@@ -158,6 +161,10 @@ HEADER_FIELDS: list[Field] = [
     ),
     _u7("group_size", GROUP_SIZE_OFFSET, "likely", "template group size"),
     _u7("group_position", GROUP_POSITION_OFFSET, "likely", "position within group"),
+    _u7("keyboard_channel", m.KEYBOARD_CHANNEL_OFFSET, "confirmed", "KeybCHAN, 0-based"),
+    _u7("keyboard_port", m.KEYBOARD_PORT_OFFSET, "confirmed", "KeybPORT, mask code as +18"),
+    _u7("common_channel", m.COMMON_CHANNEL_OFFSET, "confirmed", "ComnCHAN, 0-based"),
+    _u7("common_port", m.COMMON_PORT_OFFSET, "confirmed", "ComnPORT, mask code as +18"),
 ]
 
 

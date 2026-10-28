@@ -42,7 +42,7 @@ Open questions are GitHub issues #1–#10; the hardware session is #11.
 
 ```sh
 uv sync            # Python 3.12+; on Linux first: sudo apt install libasound2-dev
-uv run pytest      # 309 tests, no hardware needed
+uv run pytest      # 317 tests, no hardware needed
 ```
 
 ## Use
@@ -60,6 +60,7 @@ uv run slcfg encode my.json -o my.syx
 # editor: panel laid out like the 37 SL (fake loopback port unless --device is given)
 # TEXTUAL_ANIMATIONS=none turns the panel animation off
 # Automap templates (34, 37-40): controls owned by Automap are locked (blue); press a to toggle
+# the row under the name sets the template's keyboard/common channel and port (ComnCHAN etc.)
 uv run slcfg tui my.syx
 uv run slcfg tui my.syx --device "ReMOTE SL Port 1"
 

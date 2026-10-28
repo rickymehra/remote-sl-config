@@ -117,3 +117,32 @@ def test_hand_edited_raw_bytes_are_rejected(vstation, edit):
     d["controls"]["encoder_1"]["_raw"] = r.hex(" ")
     with pytest.raises(ValidationError):
         Template.from_json(d)
+
+
+def test_routing_code_descriptions():
+    from slcfg.model import (
+        describe_channel,
+        describe_port,
+        describe_template_channel,
+        describe_template_port,
+    )
+
+    assert [describe_channel(c) for c in (0x40, 0x4F, 0x00, 0x20, 0x30)] == [
+        "ch 1",
+        "ch 16",
+        "ComnCHAN",
+        "KeybCHAN",
+        "KeybCHAN",
+    ]
+    assert [describe_port(c) for c in (0x44, 0x47, 0x50, 0x00, 0x20, 0x40)] == [
+        "U1",
+        "U1+M1+M2",
+        "U3",
+        "ComnPORT",
+        "KeybPORT",
+        "none",
+    ]
+    assert describe_template_channel(9) == "ch 10"
+    assert "unconfirmed" in describe_template_channel(16)
+    assert describe_template_port(0x48) == "U2"
+    assert "unconfirmed" in describe_template_port(0x07)

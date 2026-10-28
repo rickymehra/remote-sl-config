@@ -41,6 +41,10 @@ from ..model import (
     BUTTON_MODES,
     CONTROL_TYPES,
     NAME_LEN,
+    PORT_MASK,
+    ROUTE_EXPLICIT,
+    ROUTE_KEYBOARD,
+    ROUTING_ATTRS,
     SLOT_BY_KEY,
     SLOTS,
     Control,
@@ -48,6 +52,11 @@ from ..model import (
     ValidationError,
     check_name,
     check_range,
+    describe_channel,
+    describe_port,
+    describe_template_channel,
+    describe_template_port,
+    port_mask_name,
 )
 from .panel import FrontPanel, empty_label
 
@@ -63,6 +72,50 @@ INT_FIELDS = [
     ("channel", "Channel code", 127),
     ("port", "Port code", 127),
 ]
+
+# Template routing selects: (template attribute, label)
+ROUTING_FIELDS = [
+    ("keyboard_channel", "Keyb ch"),
+    ("keyboard_port", "Keyb port"),
+    ("common_channel", "Comn ch"),
+    ("common_port", "Comn port"),
+]
+CHANNEL_OPTIONS = [(f"ch {i + 1}", i) for i in range(16)]
+# Every explicit port mask, fewest ports first
+PORT_OPTIONS = [
+    (port_mask_name(code), code)
+    for code in sorted(
+        (ROUTE_EXPLICIT | mask for mask in range(PORT_MASK + 1)),
+        key=lambda c: (bin(c & PORT_MASK).count("1"), port_mask_name(c)),
+    )
+]
+
+
+def routing_options(attr: str, code: int) -> list[tuple[str, int]]:
+    """Select options for a template routing byte; a code outside the known set (e.g. a
+    port byte with bit 6 clear) is listed as-is so loading never changes it."""
+    if attr.endswith("channel"):
+        opts, label = CHANNEL_OPTIONS, describe_template_channel(code)
+    else:
+        opts, label = PORT_OPTIONS, describe_template_port(code)
+    return opts if any(v == code for _, v in opts) else [*opts, (label, code)]
+
+
+def resolve_route(t: Template, c: Control) -> str:
+    """Where a control's messages go, following the template channel/port if it does."""
+
+    def follow(code: int, kind: str, describe: Callable[[int], str]) -> str:
+        text = describe(code)
+        if code & ROUTE_EXPLICIT:
+            return text
+        source = getattr(t, f"{'keyboard' if code & ROUTE_KEYBOARD else 'common'}_{kind}")
+        fn = describe_template_channel if kind == "channel" else describe_template_port
+        return f"{text} = {fn(source)}"
+
+    return (
+        f"routing: {follow(c.channel, 'channel', describe_channel)}, "
+        f"{follow(c.port, 'port', describe_port)}"
+    )
 
 
 def blank_template() -> Template:
@@ -109,6 +162,9 @@ class SLConfigApp(App[None]):
     #top, #tmpl, #actions { height: 3; }
     #top Input, #tmpl-name { width: 1fr; }
     #tmpl-slot { width: 14; }
+    #routing { height: 3; }
+    #routing Label { width: auto; padding: 1 1 0 1; color: $text-muted; }
+    #routing Select { width: 1fr; }
     #top Button, #actions Button { min-width: 8; margin-right: 1; }
     #panel-scroll { height: auto; max-height: 60%; }
     #status-row { height: 1; }
@@ -175,6 +231,14 @@ class SLConfigApp(App[None]):
         with Horizontal(id="tmpl"):
             yield Input(placeholder="template name (48)", id="tmpl-name", max_length=48)
             yield Input(placeholder="slot 1-40", id="tmpl-slot", max_length=2)
+        with Horizontal(id="routing"):
+            for attr, label in ROUTING_FIELDS:
+                yield Label(label)
+                yield Select(
+                    routing_options(attr, getattr(self.template, attr)),
+                    id=f"t-{attr}",
+                    allow_blank=False,
+                )
         with ScrollableContainer(id="panel-scroll"):
             yield FrontPanel(id="panel")
         with Horizontal(id="status-row"):
@@ -244,6 +308,11 @@ class SLConfigApp(App[None]):
         self.query_one(FrontPanel).set_locked(self.locked)
         self.query_one("#tmpl-name", Input).value = self.template.name
         self.query_one("#tmpl-slot", Input).value = str(self.template.slot)
+        for attr in ROUTING_ATTRS:
+            code = getattr(self.template, attr)
+            sel = self.query_one(f"#t-{attr}", Select)
+            sel.set_options(routing_options(attr, code))
+            sel.value = code
         for s in SLOTS:
             c = self.template.controls.get(s.key)
             btn = self.query_one(f"#ctl-{s.key}", Button)
@@ -308,6 +377,7 @@ class SLConfigApp(App[None]):
             "  +00 " + rec[:16].hex(" "),
             "  +16 " + rec[16:32].hex(" "),
             "  +32 " + rec[32:].hex(" "),
+            resolve_route(self.template, self.template.control(self.selected)),
         ]
         self.query_one("#hex", Static).update("\n".join(hex_lines))
         diffs = diff_bytes(self.loaded_bytes, data)
@@ -343,6 +413,10 @@ class SLConfigApp(App[None]):
         except ValidationError as e:
             self.set_status(f"invalid: {e}")
             return
+        for attr in ROUTING_ATTRS:
+            value = self.query_one(f"#t-{attr}", Select).value
+            assert isinstance(value, int)
+            setattr(self.template, attr, value)
         self.template.controls[self.selected] = c
         self.template.name = name
         self.template.slot = int(slot_text)
